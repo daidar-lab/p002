@@ -1,192 +1,149 @@
--- ======================================================
--- Audit Quality Database Schema
--- Data: 2026-05-04
--- ======================================================
-
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- ══════════════════════════════════════════════════
+-- Audit Quality — Schema base (INTEGER / IDENTITY)
+-- ══════════════════════════════════════════════════
 
 CREATE SCHEMA IF NOT EXISTS audit_quality;
 SET search_path TO audit_quality;
 
-CREATE TYPE document_type AS ENUM ('RNC', 'RAQ', 'RHE');
-
-CREATE TYPE audit_status AS ENUM (
-    'CRIADO',
-    'EM_PREENCHIMENTO',
-    'ENVIADO_ASSINATURA',
-    'ASSINADO',
-    'BLOQUEIO_AUTORIZADO',
-    'ENVIADO_FORNECEDOR',
-    'RESPONDIDO_FORNECEDOR',
-    'EM_VERIFICACAO',
-    'CONCLUIDO'
-);
-
-CREATE OR REPLACE FUNCTION set_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- ────────────────────────────────────────────────
+-- SUPPLIERS
+-- ────────────────────────────────────────────────
+DROP TABLE IF EXISTS suppliers CASCADE;
 
 CREATE TABLE suppliers (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    cnpj VARCHAR(18) UNIQUE,
-    contact_name VARCHAR(100),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name         VARCHAR(255) NOT NULL,
+  cnpj         VARCHAR(18)  UNIQUE,
+  contact_name VARCHAR(255),
+  email        VARCHAR(255),
+  active       BOOLEAN      NOT NULL DEFAULT true,
+  created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ
 );
 
-CREATE TRIGGER trg_suppliers_updated_at
-BEFORE UPDATE ON suppliers
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+-- ────────────────────────────────────────────────
+-- DOCUMENTS
+-- ────────────────────────────────────────────────
+DROP TABLE IF EXISTS documents CASCADE;
 
 CREATE TABLE documents (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
-    type document_type NOT NULL,
-    code VARCHAR(50) NOT NULL,
-    status audit_status DEFAULT 'CRIADO',
+  code             VARCHAR(50)  NOT NULL UNIQUE,
+  type             VARCHAR(10)  NOT NULL
+                     CHECK (type IN ('RNC', 'RAQ', 'RHE')),
 
-    supplier_id UUID REFERENCES suppliers(id),
-    item_description TEXT NOT NULL,
-    defect_category VARCHAR(100) NOT NULL,
+  status           VARCHAR(30)  NOT NULL DEFAULT 'ABERTO'
+                     CHECK (status IN (
+                       'ABERTO',
+                       'EM_ANALISE',
+                       'ENVIADO_FORNECEDOR',
+                       'CONCLUIDO',
+                       'CANCELADO'
+                     )),
 
-    gut_gravity INTEGER CHECK (gut_gravity BETWEEN 1 AND 5),
-    gut_urgency INTEGER CHECK (gut_urgency BETWEEN 1 AND 5),
-    gut_tendency INTEGER CHECK (gut_tendency BETWEEN 1 AND 5),
+  parent_doc_id    BIGINT REFERENCES documents(id) ON DELETE SET NULL,
+  supplier_id      BIGINT REFERENCES suppliers(id) ON DELETE SET NULL,
 
-    received_at TIMESTAMP,
-    material_disposal TEXT,
+  item_description TEXT NOT NULL,
 
-    conclusive_close TEXT,
+  defect_category  VARCHAR(30) NOT NULL DEFAULT 'QUALIDADE'
+                     CHECK (defect_category IN (
+                       'QUALIDADE',
+                       'PROCESSO',
+                       'MATERIAL',
+                       'SEGURANCA'
+                     )),
 
-    parent_doc_id UUID REFERENCES documents(id),
-    is_automated_conversion BOOLEAN DEFAULT FALSE,
+  gut_gravity      SMALLINT NOT NULL DEFAULT 5 CHECK (gut_gravity  BETWEEN 1 AND 9),
+  gut_urgency      SMALLINT NOT NULL DEFAULT 5 CHECK (gut_urgency  BETWEEN 1 AND 9),
+  gut_tendency     SMALLINT NOT NULL DEFAULT 5 CHECK (gut_tendency BETWEEN 1 AND 9),
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT uq_documents_type_code UNIQUE (type, code),
-
-    CONSTRAINT chk_raq_fields
-        CHECK (type <> 'RAQ' OR received_at IS NOT NULL),
-
-    CONSTRAINT chk_rnc_fields
-        CHECK (type <> 'RNC' OR conclusive_close IS NOT NULL)
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ
 );
 
-CREATE TRIGGER trg_documents_updated_at
-BEFORE UPDATE ON documents
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+-- ────────────────────────────────────────────────
+-- AUDIT LOGS
+-- ────────────────────────────────────────────────
+DROP TABLE IF EXISTS audit_logs CASCADE;
 
 CREATE TABLE audit_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-    responsible_name VARCHAR(255),
-    action TEXT NOT NULL,
-    previous_status audit_status,
-    new_status audit_status NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  document_id BIGINT NOT NULL
+                REFERENCES documents(id) ON DELETE CASCADE,
+  action      VARCHAR(100) NOT NULL,
+  detail      TEXT,
+  user_name   VARCHAR(100),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE OR REPLACE FUNCTION validate_status_flow()
+-- ────────────────────────────────────────────────
+-- TRIGGER: UPDATED_AT
+-- ────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION audit_quality.set_updated_at()
 RETURNS TRIGGER AS $$
-DECLARE
-    allowed BOOLEAN := FALSE;
 BEGIN
-    IF OLD.status = NEW.status THEN
-        RETURN NEW;
-    END IF;
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-    allowed :=
-        (OLD.status = 'CRIADO'               AND NEW.status = 'EM_PREENCHIMENTO') OR
-        (OLD.status = 'EM_PREENCHIMENTO'     AND NEW.status = 'ENVIADO_ASSINATURA') OR
-        (OLD.status = 'ENVIADO_ASSINATURA'   AND NEW.status = 'ASSINADO') OR
-        (OLD.status = 'ASSINADO'             AND NEW.status = 'BLOQUEIO_AUTORIZADO') OR
-        (OLD.status = 'BLOQUEIO_AUTORIZADO'  AND NEW.status = 'ENVIADO_FORNECEDOR') OR
-        (OLD.status = 'ENVIADO_FORNECEDOR'   AND NEW.status = 'RESPONDIDO_FORNECEDOR') OR
-        (OLD.status = 'RESPONDIDO_FORNECEDOR'AND NEW.status = 'EM_VERIFICACAO') OR
-        (OLD.status = 'EM_VERIFICACAO'       AND NEW.status = 'CONCLUIDO');
+DROP TRIGGER IF EXISTS trg_updated_documents ON audit_quality.documents;
+CREATE TRIGGER trg_updated_documents
+  BEFORE UPDATE ON audit_quality.documents
+  FOR EACH ROW
+  EXECUTE FUNCTION audit_quality.set_updated_at();
 
-    IF NOT allowed THEN
-        RAISE EXCEPTION
-            'Transição de status inválida: % → %',
-            OLD.status, NEW.status;
-    END IF;
+DROP TRIGGER IF EXISTS trg_updated_suppliers ON audit_quality.suppliers;
+CREATE TRIGGER trg_updated_suppliers
+  BEFORE UPDATE ON audit_quality.suppliers
+  FOR EACH ROW
+  EXECUTE FUNCTION audit_quality.set_updated_at();
 
-    INSERT INTO audit_logs (
-        document_id,
-        action,
-        previous_status,
-        new_status
-    )
-    VALUES (
-        OLD.id,
-        'ALTERACAO_STATUS',
-        OLD.status,
-        NEW.status
+-- ────────────────────────────────────────────────
+-- TRIGGER: LOG STATUS CHANGE
+-- ────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION audit_quality.log_status_change()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF OLD.status IS DISTINCT FROM NEW.status THEN
+    INSERT INTO audit_quality.audit_logs (
+      document_id,
+      action,
+      detail,
+      created_at
+    ) VALUES (
+      NEW.id,
+      'Status alterado',
+      'De "' || OLD.status || '" para "' || NEW.status || '"',
+      NOW()
     );
-
-    RETURN NEW;
+  END IF;
+  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_validate_status_flow
-BEFORE UPDATE OF status ON documents
-FOR EACH ROW EXECUTE FUNCTION validate_status_flow();
+DROP TRIGGER IF EXISTS trg_log_status ON audit_quality.documents;
+CREATE TRIGGER trg_log_status
+  AFTER UPDATE OF status ON audit_quality.documents
+  FOR EACH ROW
+  EXECUTE FUNCTION audit_quality.log_status_change();
 
-CREATE OR REPLACE FUNCTION auto_create_rnc_from_raq()
-RETURNS VOID AS $$
-DECLARE
-    rec RECORD;
-    new_rnc_id UUID;
-BEGIN
-    FOR rec IN
-        SELECT
-            supplier_id,
-            defect_category,
-            COUNT(*) AS total
-        FROM documents
-        WHERE type = 'RAQ'
-          AND created_at >= CURRENT_DATE - INTERVAL '12 months'
-        GROUP BY supplier_id, defect_category
-        HAVING COUNT(*) >= 3
-    LOOP
-        INSERT INTO documents (
-            type,
-            code,
-            status,
-            supplier_id,
-            item_description,
-            defect_category,
-            is_automated_conversion
-        )
-        VALUES (
-            'RNC',
-            'RNC-AUTO-' || replace(uuid_generate_v4()::text, '-', ''),
-            'CRIADO',
-            rec.supplier_id,
-            'RNC gerada automaticamente por reincidência de RAQs',
-            rec.defect_category,
-            TRUE
-        )
-        RETURNING id INTO new_rnc_id;
+-- ────────────────────────────────────────────────
+-- DADOS DE EXEMPLO
+-- ────────────────────────────────────────────────
+INSERT INTO suppliers (name, cnpj, contact_name, email, active) VALUES
+  ('Metalúrgica Souza Ltda',  '12.345.678/0001-99', 'Carlos Souza',  'carlos@souza.com',           true),
+  ('Plásticos Norte S.A.',   '98.765.432/0001-11', 'Ana Lima',      'ana@plasticosnorte.com',     true),
+  ('Têxtil Horizonte ME',    '55.111.222/0001-33', 'Bruno Reis',    'bruno@textilhorizonte.com',  false),
+  ('Embalagens FastPack',    '77.888.999/0001-44', 'Fernanda Dias', 'fernanda@fastpack.com',      true);
 
-        INSERT INTO audit_logs (
-            document_id,
-            action,
-            new_status
-        )
-        VALUES (
-            new_rnc_id,
-            'RNC GERADA AUTOMATICAMENTE (3 RAQs / 12 MESES)',
-            'CRIADO'
-        );
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql;
+INSERT INTO documents (
+  code, type, status, supplier_id,
+  item_description, defect_category,
+  gut_gravity, gut_urgency, gut_tendency
+) VALUES
+  ('RNC-2026-001', 'RNC', 'ABERTO',      1, 'Parafuso fora de tolerância',       'QUALIDADE', 8, 7, 6),
+  ('RAQ-2026-002', 'RAQ', 'EM_ANALISE',  2, 'Avaliação periódica fornecedor',    'PROCESSO',  5, 5, 4),
+  ('RHE-2026-003', 'RHE', 'CONCLUIDO',   3, 'Homologação material têxtil',        'QUALIDADE', 3, 2, 2);
