@@ -54,7 +54,7 @@ export default function Dashboard() {
         <KpiCard label="Abertos" value={abertos} accent="warning" />
         <KpiCard label="Em análise" value={emAnalise} accent="info" />
         <KpiCard label="Concluídos" value={concluidos} accent="success" />
-        <KpiCard label="Críticos (GUT)" value={criticos} accent="danger" sub="Score ≥ 300" />
+        <KpiCard label="Críticos (GUT)" value={criticos} accent="danger" sub="Score ≥ 21" />
       </div>
 
       <div className="dash-grid">

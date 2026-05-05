@@ -4,7 +4,8 @@ import { TypeBadge } from '../../components/Badge.jsx';
 import { rankByGUT, gutLevel } from '../../utils/gut.js';
 
 function GUTBar({ score }) {
-  const pct = Math.round((score / 729) * 100);
+  const MAX_GUT = 27;
+const pct = Math.round((score / MAX_GUT) * 100);
   const { color } = gutLevel(score);
   return (
     <div className="gut-bar-wrap">
@@ -44,14 +45,22 @@ export default function Priorizacao() {
         <div className="kpi-card"><span className="kpi-label">Total analisado</span><span className="kpi-value">{ranked.length}</span></div>
         <div className="kpi-card kpi-card--danger"><span className="kpi-label">Críticos</span><span className="kpi-value">{criticos}</span></div>
         <div className="kpi-card kpi-card--warning"><span className="kpi-label">Alta prioridade</span><span className="kpi-value">{altos}</span></div>
-        <div className="kpi-card"><span className="kpi-label">Score máximo</span><span className="kpi-value kpi-value--sub">729</span></div>
+        <div className="kpi-card"><span className="kpi-label">Score máximo</span><span className="kpi-value kpi-value--sub">27</span></div>
       </div>
 
       <div className="gut-legend">
-        {[['critico','Crítico ≥ 300'],['alto','Alto ≥ 100'],['medio','Médio ≥ 27'],['baixo','Baixo < 27']].map(([c,l])=>(
-          <span key={c} className="gut-legend__item"><span className={`gut-dot gut-dot--${c}`}/>{l}</span>
-        ))}
-      </div>
+  {[
+    ['critico','Crítico ≥ 21'],
+    ['alto','Alto ≥ 16'],
+    ['medio','Médio ≥ 10'],
+    ['baixo','Baixo < 10'],
+  ].map(([c,l])=>(
+    <span key={c} className="gut-legend__item">
+      <span className={`gut-dot gut-dot--${c}`}/>
+      {l}
+    </span>
+  ))}
+</div>
 
       <div className="filters">
         <select className="filter-select" value={filterType} onChange={e => setFilterType(e.target.value)}>

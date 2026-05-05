@@ -160,7 +160,7 @@ export default function Documentos() {
             </thead>
             <tbody>
               {filtered.map(d => {
-                const score = (d.gut_gravity ?? 5) * (d.gut_urgency ?? 5) * (d.gut_tendency ?? 5);
+                const score = (d.gut_gravity ?? 5) + (d.gut_urgency ?? 5) + (d.gut_tendency ?? 5);
                 return (
                   <tr key={d.id}>
                     <td className="mono">{d.code}</td>
