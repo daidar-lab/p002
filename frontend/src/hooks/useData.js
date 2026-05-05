@@ -1,65 +1,89 @@
-import { useState, useEffect } from 'react';
-import { mockDocuments, mockSuppliers } from '../utils/mockData.js';
-
-// Troque os mocks por fetch() quando o backend estiver pronto
-// Ex: const res = await fetch('http://localhost:3000/api/documents');
+import { useState, useEffect, useCallback } from 'react';
+import { api } from '../utils/api.js';
 
 export function useDocumentos() {
   const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
 
-  useEffect(() => {
-    setTimeout(() => {
-      setDocuments(mockDocuments);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.getDocuments();
+      setDocuments(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
       setLoading(false);
-    }, 300);
+    }
   }, []);
 
-  const addDocument = (doc) => {
-    const newDoc = {
-      ...doc,
-      id: Date.now(),
-      created_at: new Date().toISOString().slice(0, 10),
-      gravity: 5, urgency: 5, tendency: 5,
-    };
-    setDocuments(prev => [newDoc, ...prev]);
-    return newDoc;
+  useEffect(() => { load(); }, [load]);
+
+  const addDocument = async (body) => {
+    const doc = await api.createDocument(body);
+    setDocuments(prev => [doc, ...prev]);
+    return doc;
   };
 
-  const updateDocument = (id, updates) => {
-    setDocuments(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+  const updateDocument = async (id, body) => {
+    const doc = await api.updateDocument(id, body);
+    setDocuments(prev => prev.map(d => d.id === id ? doc : d));
+    return doc;
   };
 
-  const deleteDocument = (id) => {
+  const deleteDocument = async (id) => {
+    await api.deleteDocument(id);
     setDocuments(prev => prev.filter(d => d.id !== id));
   };
 
-  return { documents, loading, addDocument, updateDocument, deleteDocument };
+  const patchStatus = async (id, status) => {
+    const doc = await api.patchStatus(id, status);
+    setDocuments(prev => prev.map(d => d.id === id ? doc : d));
+    return doc;
+  };
+
+  return { documents, loading, error, reload: load, addDocument, updateDocument, deleteDocument, patchStatus };
 }
 
 export function useFornecedores() {
   const [suppliers, setSuppliers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
 
-  useEffect(() => {
-    setTimeout(() => {
-      setSuppliers(mockSuppliers);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.getSuppliers();
+      // SupplierService.listAll() retorna { data: [...] } ou array direto
+      setSuppliers(Array.isArray(data) ? data : data.data ?? []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
       setLoading(false);
-    }, 200);
+    }
   }, []);
 
-  const addSupplier = (s) => {
-    const newS = { ...s, id: Date.now(), active: true };
-    setSuppliers(prev => [newS, ...prev]);
+  useEffect(() => { load(); }, [load]);
+
+  const addSupplier = async (body) => {
+    const s = await api.createSupplier(body);
+    setSuppliers(prev => [s, ...prev]);
+    return s;
   };
 
-  const updateSupplier = (id, updates) => {
-    setSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+  const updateSupplier = async (id, body) => {
+    const s = await api.updateSupplier(id, body);
+    setSuppliers(prev => prev.map(x => x.id === id ? s : x));
+    return s;
   };
 
-  const deleteSupplier = (id) => {
-    setSuppliers(prev => prev.filter(s => s.id !== id));
+  const deleteSupplier = async (id) => {
+    await api.deleteSupplier(id);
+    setSuppliers(prev => prev.filter(x => x.id !== id));
   };
 
-  return { suppliers, loading, addSupplier, updateSupplier, deleteSupplier };
+  return { suppliers, loading, error, reload: load, addSupplier, updateSupplier, deleteSupplier };
 }

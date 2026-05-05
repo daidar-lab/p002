@@ -4,42 +4,32 @@ import { TypeBadge } from '../../components/Badge.jsx';
 import { rankByGUT, gutLevel } from '../../utils/gut.js';
 
 function GUTBar({ score }) {
-  const max = 729; // 9×9×9
-  const pct = Math.round((score / max) * 100);
-  const level = gutLevel(score);
+  const pct = Math.round((score / 729) * 100);
+  const { color } = gutLevel(score);
   return (
     <div className="gut-bar-wrap">
       <div className="gut-bar">
-        <div className={`gut-bar__fill gut-bar__fill--${level.color}`} style={{ width: `${pct}%` }} />
+        <div className={`gut-bar__fill gut-bar__fill--${color}`} style={{ width: `${pct}%` }} />
       </div>
       <span className="gut-bar__score">{score}</span>
     </div>
   );
 }
 
-function GUTBadge({ score }) {
-  const { label, color } = gutLevel(score);
-  return <span className={`badge badge--gut-${color}`}>{label}</span>;
-}
-
 export default function Priorizacao() {
   const { documents, loading } = useDocumentos();
-  const [filterType, setFilterType] = useState('');
+  const [filterType, setFilterType]   = useState('');
   const [filterLevel, setFilterLevel] = useState('');
 
-  const ranked = rankByGUT(documents);
-
-  const filtered = ranked.filter(d => {
-    if (filterType && d.type !== filterType) return false;
-    if (filterLevel) {
-      const { color } = gutLevel(d.gutScore);
-      if (color !== filterLevel) return false;
-    }
-    return true;
-  });
-
+  const ranked   = rankByGUT(documents);
   const criticos = ranked.filter(d => gutLevel(d.gutScore).color === 'critico').length;
   const altos    = ranked.filter(d => gutLevel(d.gutScore).color === 'alto').length;
+
+  const filtered = ranked.filter(d => {
+    if (filterType  && d.type !== filterType) return false;
+    if (filterLevel && gutLevel(d.gutScore).color !== filterLevel) return false;
+    return true;
+  });
 
   return (
     <div className="page">
@@ -51,29 +41,16 @@ export default function Priorizacao() {
       </div>
 
       <div className="kpi-row">
-        <div className="kpi-card">
-          <span className="kpi-label">Total analisado</span>
-          <span className="kpi-value">{ranked.length}</span>
-        </div>
-        <div className="kpi-card kpi-card--danger">
-          <span className="kpi-label">Críticos</span>
-          <span className="kpi-value">{criticos}</span>
-        </div>
-        <div className="kpi-card kpi-card--warning">
-          <span className="kpi-label">Alta prioridade</span>
-          <span className="kpi-value">{altos}</span>
-        </div>
-        <div className="kpi-card">
-          <span className="kpi-label">Score máximo possível</span>
-          <span className="kpi-value kpi-value--sub">729</span>
-        </div>
+        <div className="kpi-card"><span className="kpi-label">Total analisado</span><span className="kpi-value">{ranked.length}</span></div>
+        <div className="kpi-card kpi-card--danger"><span className="kpi-label">Críticos</span><span className="kpi-value">{criticos}</span></div>
+        <div className="kpi-card kpi-card--warning"><span className="kpi-label">Alta prioridade</span><span className="kpi-value">{altos}</span></div>
+        <div className="kpi-card"><span className="kpi-label">Score máximo</span><span className="kpi-value kpi-value--sub">729</span></div>
       </div>
 
       <div className="gut-legend">
-        <span className="gut-legend__item"><span className="gut-dot gut-dot--critico"/>Crítico ≥ 300</span>
-        <span className="gut-legend__item"><span className="gut-dot gut-dot--alto"/>Alto ≥ 100</span>
-        <span className="gut-legend__item"><span className="gut-dot gut-dot--medio"/>Médio ≥ 27</span>
-        <span className="gut-legend__item"><span className="gut-dot gut-dot--baixo"/>Baixo &lt; 27</span>
+        {[['critico','Crítico ≥ 300'],['alto','Alto ≥ 100'],['medio','Médio ≥ 27'],['baixo','Baixo < 27']].map(([c,l])=>(
+          <span key={c} className="gut-legend__item"><span className={`gut-dot gut-dot--${c}`}/>{l}</span>
+        ))}
       </div>
 
       <div className="filters">
@@ -94,37 +71,31 @@ export default function Priorizacao() {
         {loading ? <p className="loading-text">Calculando...</p> : (
           <table>
             <thead>
-              <tr>
-                <th>#</th><th>Código</th><th>Tipo</th><th>Fornecedor</th>
-                <th title="Gravidade (1–9)">G</th>
-                <th title="Urgência (1–9)">U</th>
-                <th title="Tendência (1–9)">T</th>
-                <th>Score GUT</th>
-                <th>Nível</th>
-              </tr>
+              <tr><th>#</th><th>Código</th><th>Tipo</th><th>Fornecedor</th>
+                <th title="Gravidade">G</th><th title="Urgência">U</th><th title="Tendência">T</th>
+                <th>Score GUT</th><th>Nível</th></tr>
             </thead>
             <tbody>
-              {filtered.map((d, i) => (
-                <tr key={d.id} className={gutLevel(d.gutScore).color === 'critico' ? 'row--critico' : ''}>
-                  <td className="td-rank text-sub">{i + 1}º</td>
-                  <td className="mono">{d.code}</td>
-                  <td><TypeBadge type={d.type} /></td>
-                  <td>{d.supplier_name}</td>
-                  <td className="td-score">{d.gravity}</td>
-                  <td className="td-score">{d.urgency}</td>
-                  <td className="td-score">{d.tendency}</td>
-                  <td className="td-gut-bar"><GUTBar score={d.gutScore} /></td>
-                  <td><GUTBadge score={d.gutScore} /></td>
-                </tr>
-              ))}
+              {filtered.map((d, i) => {
+                const { label, color } = gutLevel(d.gutScore);
+                return (
+                  <tr key={d.id} className={color === 'critico' ? 'row--critico' : ''}>
+                    <td className="td-rank text-sub">{i + 1}º</td>
+                    <td className="mono">{d.code}</td>
+                    <td><TypeBadge type={d.type} /></td>
+                    <td>{d.supplier_name || '—'}</td>
+                    <td className="td-score">{d.gut_gravity}</td>
+                    <td className="td-score">{d.gut_urgency}</td>
+                    <td className="td-score">{d.gut_tendency}</td>
+                    <td className="td-gut-bar"><GUTBar score={d.gutScore} /></td>
+                    <td><span className={`badge badge--gut-${color}`}>{label}</span></td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
       </div>
-
-      <p className="gut-note">
-        Os scores G, U e T são editáveis na aba Documentos → campo auditoria. Valores de 1 a 9 conforme metodologia GUT clássica.
-      </p>
     </div>
   );
 }
