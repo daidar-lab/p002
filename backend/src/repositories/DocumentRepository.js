@@ -53,33 +53,63 @@ class DocumentRepository {
   }
 
   // No seu DocumentRepository.js, substitua o getTimeline:
-async getTimeline(documentId) {
-  const query = `
-    -- Parte 1: Mudanças de Status (Mapeado para o seu t.action e t.detail)
-    SELECT 
-      created_at,
-      'Status alterado para ' || new_status AS action,
-      'De: ' || COALESCE(old_status, 'Aberto') || ' ➔ Para: ' || new_status AS detail,
-      changed_by AS user_name
-    FROM audit_quality.status_history
-    WHERE document_id = $1
+  async getTimeline(documentId) {
+    const query = `
+      -- Parte 1: Mudanças de Status (Mapeado para o seu t.action e t.detail)
+      SELECT 
+        created_at,
+        'Status alterado para ' || new_status AS action,
+        'De: ' || COALESCE(old_status, 'Aberto') || ' ➔ Para: ' || new_status AS detail,
+        changed_by AS user_name
+      FROM audit_quality.status_history
+      WHERE document_id = $1
 
-    UNION ALL
+      UNION ALL
 
-    -- Parte 2: Envios de E-mail
-    SELECT 
-      sent_at AS created_at,
-      'E-mail enviado: ' || subject AS action,
-      'Destinatário: ' || recipient || ' | Status: ' || status AS detail,
-      triggered_by AS user_name
-    FROM audit_quality.email_logs
-    WHERE document_id = $1
+      -- Parte 2: Envios de E-mail
+      SELECT 
+        sent_at AS created_at,
+        'E-mail enviado: ' || subject AS action,
+        'Destinatário: ' || recipient || ' | Status: ' || status AS detail,
+        triggered_by AS user_name
+      FROM audit_quality.email_logs
+      WHERE document_id = $1
 
-    ORDER BY created_at DESC
-  `;
-  const result = await pool.query(query, [documentId]);
-  return result.rows;
-}
+      ORDER BY created_at DESC
+    `;
+    const result = await pool.query(query, [documentId]);
+    return result.rows;
+  }
+
+  /**
+   * Busca RAQs válidas para o motor de reincidência (BR-05)
+   */
+  async findValidRAQsForRecurrence(supplier_id, defect_category) {
+    const query = `
+      SELECT id, code, created_at
+      FROM audit_quality.documents
+      WHERE supplier_id = $1
+        AND defect_category = $2
+        AND type = 'RAQ'
+        AND status != 'CANCELADO'
+        AND created_at >= NOW() - INTERVAL '12 months'
+      ORDER BY created_at ASC
+    `;
+    const result = await pool.query(query, [supplier_id, defect_category]);
+    return result.rows;
+  }
+
+  /**
+   * Vincula logicamente uma lista de RAQs a um RNC pai (evidências)
+   */
+  async linkRAQsToParentRNC(rnc_id, raq_ids) {
+    const query = `
+      UPDATE audit_quality.documents
+      SET parent_doc_id = $1
+      WHERE id = ANY($2)
+    `;
+    await pool.query(query, [rnc_id, raq_ids]);
+  }
 }
 
 export default new DocumentRepository();

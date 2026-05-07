@@ -1,4 +1,5 @@
 import DocumentRepository from '../repositories/DocumentRepository.js';
+import MailService from './MailService.js';
 import pool from '../config/db.js';
 
 class DocumentService {
@@ -6,7 +7,134 @@ class DocumentService {
     return await DocumentRepository.getAllWithSuppliers();
   }
 
-  async create(data) {
+  /**
+   * Motor Determinístico de Decisão de Reincidência (BR-05 / RF-019)
+   */
+  async evaluateRecurrence(supplier_id, defect_category) {
+    if (!supplier_id || !defect_category) {
+      return { decision: 'INSUFFICIENT_CONTEXT' };
+    }
+
+    const raqs = await DocumentRepository.findValidRAQsForRecurrence(supplier_id, defect_category);
+    
+    // Contagem de RAQs válidas (janela de 12 meses já filtrada no repositório)
+    if (raqs.length < 2) {
+      return {
+        decision: 'ALLOW_RAQ',
+        rule_applied: 'BR-05',
+        deterministic: true,
+        history_count: raqs.length
+      };
+    }
+
+    return {
+      decision: 'ESCALATE_TO_RNC',
+      rule_applied: 'BR-05',
+      deterministic: true,
+      history_count: raqs.length,
+      evidence_ids: raqs.map(r => r.id)
+    };
+  }
+
+  async create(data, user = 'sistema') {
+    const {
+      type = 'RNC',
+      supplier_id = null,
+      defect_category = 'QUALIDADE',
+      item_description
+    } = data;
+
+    if (!item_description) {
+      return {
+        error: true,
+        status: 400,
+        message: 'A descrição do item é obrigatória.'
+      };
+    }
+
+    // 1. Interceptação para regra de reincidência (BR-05)
+    if (type === 'RAQ') {
+      const evaluation = await this.evaluateRecurrence(supplier_id, defect_category);
+      
+      if (evaluation.decision === 'ESCALATE_TO_RNC') {
+        console.log('🚨 BR-05: Escalonamento automático para RNC detectado.');
+        return await this._executeEscalation(data, evaluation, user);
+      }
+    }
+
+    // Fluxo normal de criação
+    return await this._persistDocument(data);
+  }
+
+  async _executeEscalation(originalData, evaluation, user) {
+    const { supplier_id, defect_category, item_description } = originalData;
+    
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // A. Gera novo código para o RNC
+      const newCode = await this._generateNextCode('RNC');
+
+      // B. Cria o RNC automático
+      const rncResult = await client.query(
+        `INSERT INTO audit_quality.documents (
+          code, type, status, supplier_id,
+          item_description, defect_category, created_at
+        ) VALUES ($1, 'RNC', 'ABERTO', $2, $3, $4, NOW())
+        RETURNING *`,
+        [newCode, supplier_id, `[ESCALONAMENTO BR-05] ${item_description}`, defect_category]
+      );
+
+      const newRnc = rncResult.rows[0];
+
+      // C. Vincula RAQs de evidência
+      await client.query(
+        'UPDATE audit_quality.documents SET parent_doc_id = $1 WHERE id = ANY($2)',
+        [newRnc.id, evaluation.evidence_ids]
+      );
+
+      // D. Registra Auditoria
+      await client.query(
+        `INSERT INTO audit_quality.audit_logs (document_id, action, detail, user_name)
+         VALUES ($1, 'BR-05: Escalonamento', $2, $3)`,
+        [
+          newRnc.id, 
+          `RNC criado automaticamente após detectar ${evaluation.history_count} RAQs reincidentes.`,
+          user
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      // E. Notificação (Side Effect contratual)
+      const supplierResult = await pool.query('SELECT name FROM audit_quality.suppliers WHERE id = $1', [supplier_id]);
+      const supplierName = supplierResult.rows[0]?.name || 'Fornecedor';
+
+      MailService.sendRecurrenceAlert({
+        rnc_code: newCode,
+        supplier_name: supplierName,
+        category: defect_category,
+        raqs_count: evaluation.history_count
+      });
+
+      return {
+        escalated: true,
+        decision: evaluation.decision,
+        rule_applied: evaluation.rule_applied,
+        deterministic: true,
+        data: newRnc
+      };
+
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async _persistDocument(data) {
     const {
       code,
       type = 'RNC',
@@ -16,29 +144,43 @@ class DocumentService {
       defect_category = 'QUALIDADE'
     } = data;
 
-    if (!code || !item_description) {
-      return {
-        error: true,
-        status: 400,
-        message: 'Código e descrição são obrigatórios.'
-      };
+    let finalCode = code;
+    if (!finalCode) {
+      finalCode = await this._generateNextCode(type);
     }
 
     try {
-      // Adicionado prefixo audit_quality para evitar colisões de esquema
       const result = await pool.query(
         `INSERT INTO audit_quality.documents (
           code, type, status, supplier_id,
           item_description, defect_category, created_at
         ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
         RETURNING *`,
-        [code, type, status, supplier_id || null, item_description, defect_category]
+        [finalCode, type, status, supplier_id || null, item_description, defect_category]
       );
 
       return { data: result.rows[0] };
     } catch (err) {
       return this._handleDbError(err);
     }
+  }
+
+  async _generateNextCode(type) {
+    const result = await pool.query(
+      "SELECT code FROM audit_quality.documents WHERE type = $1 ORDER BY id DESC LIMIT 1",
+      [type]
+    );
+    const lastCode = result.rows[0]?.code;
+    const year = new Date().getFullYear();
+    
+    if (!lastCode || !lastCode.includes(year.toString())) {
+      return `${type}-${year}-001`;
+    }
+    
+    // Formato: TYPE-YYYY-NNN
+    const parts = lastCode.split('-');
+    const sequence = parseInt(parts[2] || '0') + 1;
+    return `${type}-${year}-${sequence.toString().padStart(3, '0')}`;
   }
 
   async update(documentId, data) {
