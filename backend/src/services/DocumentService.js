@@ -1,4 +1,5 @@
 import DocumentRepository from '../repositories/DocumentRepository.js';
+import RootCauseRepository from '../repositories/RootCauseRepository.js';
 import MailService from './MailService.js';
 import pool from '../config/db.js';
 
@@ -241,31 +242,88 @@ class DocumentService {
     }
   }
 
+  /**
+   * Motor Determinístico de Validação de ACR (BR-ACR-01)
+   */
+  async evaluateACR(documentId) {
+    if (!documentId) {
+      return { decision: 'INSUFFICIENT_CONTEXT' };
+    }
+
+    const acr = await RootCauseRepository.findByDocumentId(documentId);
+
+    if (!acr) {
+      return {
+        decision: 'BLOCK_WORKFLOW',
+        rule_applied: 'BR-ACR-01',
+        reason: 'Análise de Causa Raiz inexistente.',
+        deterministic: true
+      };
+    }
+
+    const { type, data } = acr;
+    let isValid = false;
+
+    if (type === '5_WHYS') {
+      // Regra: Mínimo de 5 níveis respondidos
+      const levels = data.levels || [];
+      const answeredLevels = levels.filter(l => l && l.trim().length > 0);
+      isValid = answeredLevels.length >= 5;
+    } else if (type === 'ISHIKAWA') {
+      // Regra: Pelo menos uma categoria preenchida e uma causa marcada como raiz
+      const categories = data.categories || {};
+      const hasContent = Object.values(categories).some(c => c && c.length > 0);
+      const hasRootMarked = data.has_root_cause === true;
+      isValid = hasContent && hasRootMarked;
+    }
+
+    return {
+      decision: isValid ? 'ALLOW_PROGRESS' : 'BLOCK_WORKFLOW',
+      rule_applied: 'BR-ACR-01',
+      analysis_type: type,
+      deterministic: true
+    };
+  }
+
   async changeStatus(documentId, newStatus, changedBy = 'sistema') {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
-      // 1. Busca status atual
-      const currentDoc = await client.query(
-        'SELECT status FROM audit_quality.documents WHERE id = $1', 
+      // 1. Busca dados do documento
+      const docResult = await client.query(
+        'SELECT status, type FROM audit_quality.documents WHERE id = $1', 
         [documentId]
       );
       
-      if (currentDoc.rowCount === 0) {
+      if (docResult.rowCount === 0) {
         await client.query('ROLLBACK');
         return { error: true, status: 404, message: 'Documento não encontrado.' };
       }
       
-      const oldStatus = currentDoc.rows[0].status;
+      const { status: oldStatus, type: docType } = docResult.rows[0];
 
-      // 2. Atualiza o documento
+      // 2. Validação de ACR para Encerramento de RNC (BR-ACR-01)
+      if (newStatus === 'CONCLUIDO' && docType === 'RNC') {
+        const evaluation = await this.evaluateACR(documentId);
+        if (evaluation.decision === 'BLOCK_WORKFLOW') {
+          await client.query('ROLLBACK');
+          return { 
+            error: true, 
+            status: 403, 
+            message: 'Encerramento bloqueado: Análise de Causa Raiz inválida ou incompleta.',
+            evaluation 
+          };
+        }
+      }
+
+      // 3. Atualiza o documento
       await client.query(
         'UPDATE audit_quality.documents SET status = $1, updated_at = NOW() WHERE id = $2',
         [newStatus, documentId]
       );
 
-      // 3. Grava no histórico (A base da sua Timeline)
+      // 4. Grava no histórico
       await client.query(
         `INSERT INTO audit_quality.status_history (document_id, old_status, new_status, changed_by) 
          VALUES ($1, $2, $3, $4)`,
@@ -278,7 +336,6 @@ class DocumentService {
       await client.query('ROLLBACK');
       return { error: true, message: err.message };
     } finally {
-      // Liberação única e limpa do cliente
       client.release();
     }
   }
