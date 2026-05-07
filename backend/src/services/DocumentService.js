@@ -1,5 +1,6 @@
 import DocumentRepository from '../repositories/DocumentRepository.js';
 import RootCauseRepository from '../repositories/RootCauseRepository.js';
+import CapaRepository from '../repositories/CapaRepository.js';
 import MailService from './MailService.js';
 import pool from '../config/db.js';
 
@@ -285,6 +286,54 @@ class DocumentService {
     };
   }
 
+  /**
+   * Motor Determinístico de Validação de CAPA (BR-CAPA-01 - HARDENED)
+   */
+  async evaluateCAPA(documentId) {
+    if (!documentId) {
+      return { decision: 'INSUFFICIENT_CONTEXT' };
+    }
+
+    // 1. Filtra exclusivamente CAPAs com status PENDENTE ou CONCLUIDO (Hardening Rule)
+    const capas = await CapaRepository.findActiveByDocumentId(documentId);
+
+    // 2. Se não houver CAPAs ativas, bloqueia (BR-CAPA-01)
+    if (capas.length === 0) {
+      return {
+        decision: 'BLOCK_WORKFLOW',
+        rule_applied: 'BR-CAPA-01',
+        error_code: 'CAPA_INCOMPLETE',
+        deterministic: true
+      };
+    }
+
+    // 3. Todas as CAPAs devem ser válidas (Unicidade e Consistência)
+    for (const capa of capas) {
+      const isInvalid = 
+        !capa.type || 
+        !capa.description || 
+        !capa.root_cause_link || 
+        !capa.responsible || 
+        !capa.due_date || 
+        !capa.efficacy_criteria;
+
+      if (isInvalid) {
+        return {
+          decision: 'BLOCK_WORKFLOW',
+          rule_applied: 'BR-CAPA-01',
+          error_code: 'CAPA_INCOMPLETE',
+          deterministic: true
+        };
+      }
+    }
+
+    return {
+      decision: 'ALLOW_PROGRESS',
+      rule_applied: 'BR-CAPA-01',
+      deterministic: true
+    };
+  }
+
   async changeStatus(documentId, newStatus, changedBy = 'sistema') {
     const client = await pool.connect();
     try {
@@ -303,17 +352,20 @@ class DocumentService {
       
       const { status: oldStatus, type: docType } = docResult.rows[0];
 
-      // 2. Validação de ACR para Encerramento de RNC (BR-ACR-01)
+      // 2. Gate de Encerramento para RNC (ACR + CAPA)
       if (newStatus === 'CONCLUIDO' && docType === 'RNC') {
-        const evaluation = await this.evaluateACR(documentId);
-        if (evaluation.decision === 'BLOCK_WORKFLOW') {
+        // Validação ACR
+        const acrEval = await this.evaluateACR(documentId);
+        if (acrEval.decision === 'BLOCK_WORKFLOW') {
           await client.query('ROLLBACK');
-          return { 
-            error: true, 
-            status: 403, 
-            message: 'Encerramento bloqueado: Análise de Causa Raiz inválida ou incompleta.',
-            evaluation 
-          };
+          return { error: true, status: 403, message: 'Bloqueio: ACR inválida.', evaluation: acrEval };
+        }
+
+        // Validação CAPA (Hardened)
+        const capaEval = await this.evaluateCAPA(documentId);
+        if (capaEval.decision === 'BLOCK_WORKFLOW') {
+          await client.query('ROLLBACK');
+          return { error: true, status: 403, message: 'Bloqueio: CAPA incompleta.', evaluation: capaEval };
         }
       }
 
