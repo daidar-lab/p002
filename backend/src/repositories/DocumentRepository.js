@@ -52,21 +52,34 @@ class DocumentRepository {
     }
   }
 
-  async getTimeline(documentId) {
-    const query = `
-      SELECT *
-      FROM audit_quality.audit_logs
-      WHERE document_id = $1
-      ORDER BY created_at DESC
-    `;
-    try {
-      const result = await pool.query(query, [documentId]);
-      return result.rows;
-    } catch (error) {
-      console.error(`Erro ao buscar timeline do doc ${documentId}:`, error.message);
-      throw error;
-    }
-  }
+  // No seu DocumentRepository.js, substitua o getTimeline:
+async getTimeline(documentId) {
+  const query = `
+    -- Parte 1: Mudanças de Status (Mapeado para o seu t.action e t.detail)
+    SELECT 
+      created_at,
+      'Status alterado para ' || new_status AS action,
+      'De: ' || COALESCE(old_status, 'Aberto') || ' ➔ Para: ' || new_status AS detail,
+      changed_by AS user_name
+    FROM audit_quality.status_history
+    WHERE document_id = $1
+
+    UNION ALL
+
+    -- Parte 2: Envios de E-mail
+    SELECT 
+      sent_at AS created_at,
+      'E-mail enviado: ' || subject AS action,
+      'Destinatário: ' || recipient || ' | Status: ' || status AS detail,
+      triggered_by AS user_name
+    FROM audit_quality.email_logs
+    WHERE document_id = $1
+
+    ORDER BY created_at DESC
+  `;
+  const result = await pool.query(query, [documentId]);
+  return result.rows;
+}
 }
 
 export default new DocumentRepository();

@@ -25,8 +25,9 @@ class DocumentService {
     }
 
     try {
+      // Adicionado prefixo audit_quality para evitar colisões de esquema
       const result = await pool.query(
-        `INSERT INTO documents (
+        `INSERT INTO audit_quality.documents (
           code, type, status, supplier_id,
           item_description, defect_category, created_at
         ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
@@ -49,7 +50,7 @@ class DocumentService {
 
     try {
       const result = await pool.query(
-        `UPDATE documents SET
+        `UPDATE audit_quality.documents SET
           code             = COALESCE($1, code),
           type             = COALESCE($2, type),
           status           = COALESCE($3, status),
@@ -84,7 +85,7 @@ class DocumentService {
   async delete(documentId) {
     try {
       const result = await pool.query(
-        'DELETE FROM documents WHERE id = $1 RETURNING id',
+        'DELETE FROM audit_quality.documents WHERE id = $1 RETURNING id',
         [documentId]
       );
 
@@ -98,29 +99,50 @@ class DocumentService {
     }
   }
 
-  async changeStatus(documentId, newStatus) {
-    const VALID = ['ABERTO', 'EM_ANALISE', 'ENVIADO_FORNECEDOR', 'CONCLUIDO', 'CANCELADO'];
-    if (!VALID.includes(newStatus)) {
-      return { error: true, status: 400, message: `Status inválido. Use: ${VALID.join(', ')}` };
-    }
-
+  async changeStatus(documentId, newStatus, changedBy = 'sistema') {
+    const client = await pool.connect();
     try {
-      const result = await pool.query(
-        'UPDATE documents SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      await client.query('BEGIN');
+
+      // 1. Busca status atual
+      const currentDoc = await client.query(
+        'SELECT status FROM audit_quality.documents WHERE id = $1', 
+        [documentId]
+      );
+      
+      if (currentDoc.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return { error: true, status: 404, message: 'Documento não encontrado.' };
+      }
+      
+      const oldStatus = currentDoc.rows[0].status;
+
+      // 2. Atualiza o documento
+      await client.query(
+        'UPDATE audit_quality.documents SET status = $1, updated_at = NOW() WHERE id = $2',
         [newStatus, documentId]
       );
 
-      if (result.rowCount === 0) {
-        return { error: true, status: 404, message: 'Documento não encontrado.' };
-      }
+      // 3. Grava no histórico (A base da sua Timeline)
+      await client.query(
+        `INSERT INTO audit_quality.status_history (document_id, old_status, new_status, changed_by) 
+         VALUES ($1, $2, $3, $4)`,
+        [documentId, oldStatus, newStatus, changedBy]
+      );
 
-      return { data: result.rows[0] };
+      await client.query('COMMIT');
+      return { error: false };
     } catch (err) {
-      return this._handleDbError(err);
+      await client.query('ROLLBACK');
+      return { error: true, message: err.message };
+    } finally {
+      // Liberação única e limpa do cliente
+      client.release();
     }
   }
 
   async getTimeline(documentId) {
+    // Busca os dados unificados (Status + E-mails) do Repositório
     const timeline = await DocumentRepository.getTimeline(documentId);
     return { data: timeline };
   }

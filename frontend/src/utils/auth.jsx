@@ -1,27 +1,41 @@
-import React, { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
+import { api } from './api';
 
 const AuthContext = createContext(null);
 
-// Credenciais hardcoded — trocar por JWT quando backend tiver auth
-const USERS = [{ username: 'admin', password: 'admin', name: 'Administrador' }];
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    try { return JSON.parse(sessionStorage.getItem('aq_user')); } catch { return null; }
+    try {
+      return JSON.parse(sessionStorage.getItem('aq_user'));
+    } catch {
+      return null;
+    }
   });
 
-  const login = (username, password) => {
-    const found = USERS.find(u => u.username === username && u.password === password);
-    if (!found) throw new Error('Usuário ou senha incorretos.');
-    setUser(found);
-    sessionStorage.setItem('aq_user', JSON.stringify(found));
-    return found;
-  };
+  async function login(username, password) {
+    const data = await api.login({ username, password });
 
-  const logout = () => {
+    /**
+     * Backend retorna:
+     * {
+     *   token,
+     *   user
+     * }
+     */
+
+    setUser(data.user);
+
+    sessionStorage.setItem('aq_user', JSON.stringify(data.user));
+    sessionStorage.setItem('aq_token', data.token);
+
+    return data.user;
+  }
+
+  function logout() {
     setUser(null);
     sessionStorage.removeItem('aq_user');
-  };
+    sessionStorage.removeItem('aq_token');
+  }
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
@@ -30,4 +44,6 @@ export function AuthProvider({ children }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  return useContext(AuthContext);
+}
