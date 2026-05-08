@@ -1,171 +1,199 @@
 import React, { useState, useEffect } from 'react';
-import { useDocumentos } from '../../hooks/useData.js';
-import { TypeBadge, StatusBadge } from '../../components/Badge.jsx';
-import { rankByGUT, gutLevel, calcGUT } from '../../utils/gut.js';
-import EmptyState from '../../components/EmptyState.jsx';
-import { api } from '../../utils/api.js';
+import './ProcessAudits.css';
 
-function Timeline({ docId }) {
-  const [events, setEvents]   = useState([]);
+const AuditTypeBadge = ({ type }) => {
+  const colors = {
+    FLOW: '#3b82f6',
+    DECISION: '#10b981',
+    CAPA: '#f59e0b',
+    SIGNATURE: '#8b5cf6',
+    RECURRENCE: '#ef4444'
+  };
+  return (
+    <span className="snapshot-type-badge" style={{ color: colors[type], border: `1px solid ${colors[type]}22`, background: `${colors[type]}11` }}>
+      {type}
+    </span>
+  );
+};
+
+const MetricRenderer = ({ audit, compareWith = null }) => {
+  const { audit_type, result_snapshot } = audit;
+
+  const renderSingle = (data) => {
+    if (audit_type === 'FLOW') {
+      return (
+        <div className="audit-detail-content">
+          <div className="metric-cards">
+            <div className="metric-card">
+              <span className="metric-value">{data.summary.total_transitions}</span>
+              <span className="metric-label">Total de Transições</span>
+            </div>
+          </div>
+          <table className="data-table">
+            <thead>
+              <tr><th>Caminho</th><th>Tempo Médio</th><th>Atrasos</th></tr>
+            </thead>
+            <tbody>
+              {data.metrics.map((m, i) => (
+                <tr key={i}>
+                  <td>{m.path}</td>
+                  <td>{(m.avg_time_ms / (1000 * 60 * 60)).toFixed(1)}h</td>
+                  <td>{m.late_count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (audit_type === 'SIGNATURE') {
+      return (
+        <table className="data-table">
+          <thead>
+            <tr><th>Papel</th><th>Latência Média</th><th>Total</th></tr>
+          </thead>
+          <tbody>
+            {data.metrics.map((m, i) => (
+              <tr key={i}>
+                <td style={{ fontWeight: 700 }}>{m.role.toUpperCase()}</td>
+                <td>{(m.avg_latency_ms / (1000 * 60 * 60)).toFixed(1)}h</td>
+                <td>{m.total}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    return <pre>{JSON.stringify(data, null, 2)}</pre>;
+  };
+
+  if (compareWith) {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div>
+          <h4 style={{ color: '#64748b', fontSize: '0.7rem' }}>SNAPSHOT A ({new Date(audit.generated_at).toLocaleDateString()})</h4>
+          {renderSingle(result_snapshot)}
+        </div>
+        <div style={{ borderLeft: '1px solid #e2e8f0', paddingLeft: 24 }}>
+          <h4 style={{ color: '#64748b', fontSize: '0.7rem' }}>SNAPSHOT B ({new Date(compareWith.generated_at).toLocaleDateString()})</h4>
+          {renderSingle(compareWith.result_snapshot)}
+        </div>
+      </div>
+    );
+  }
+
+  return renderSingle(result_snapshot);
+};
+
+export default function Auditorias() {
+  const [activeTab, setActiveTab] = useState('meta');
+  const [history, setHistory] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [compareWith, setCompareWith] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getTimeline(docId)
-      .then(data => setEvents(Array.isArray(data) ? data : []))
-      .catch(() => setEvents([]))
+    fetch(`${import.meta.env.VITE_API_URL}/audits/history`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        setHistory(data);
+        if (data.length > 0) setSelected(data[0]);
+      })
       .finally(() => setLoading(false));
-  }, [docId]);
+  }, []);
 
-  if (loading) return <p className="loading-text" style={{ padding: 16 }}>Carregando timeline...</p>;
-  if (events.length === 0) return <EmptyState icon="📅" title="Nenhum evento registrado" />;
-
-  return (
-    <ul className="timeline">
-      {events.map((t, i) => (
-        <li key={t.id ?? i} className="timeline__item">
-          <div className="timeline__dot" />
-          <div className="timeline__content">
-            <p className="timeline__action">{t.action}</p>
-            {t.detail && <p className="timeline__detail">{t.detail}</p>}
-            <p className="timeline__meta">
-              {new Date(t.created_at).toLocaleString('pt-BR')}
-              {t.user_name ? ` · ${t.user_name}` : ''}
-            </p>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function AuditoriaDetalhe({ doc, onBack }) {
-  const score = calcGUT(doc.gut_gravity, doc.gut_urgency, doc.gut_tendency);
-  const { label, color } = gutLevel(score);
+  const handleSelect = (audit) => {
+    if (compareWith) {
+      if (audit.audit_type !== selected.audit_type) {
+        alert('Comparação permitida apenas entre snapshots do mesmo tipo.');
+        return;
+      }
+      setCompareWith(audit);
+    } else {
+      setSelected(audit);
+    }
+  };
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <div className="detalhe-back">
-          <button className="btn-ghost btn-back" onClick={onBack}>← Voltar</button>
-          <div>
-            <h1 className="page-title">{doc.code}</h1>
-            <p className="page-subtitle">{doc.supplier_name || 'Sem fornecedor'}</p>
-          </div>
-        </div>
-        <StatusBadge status={doc.status} />
+    <div className="audit-page">
+      <header className="page-header">
+        <h1 className="page-title">Meta-Governança SGNC</h1>
+        <p className="page-subtitle">Auditoria de Processos e Conformidade Sistêmica</p>
+      </header>
+
+      <div className="audit-tabs">
+        <button 
+          className={`tab-btn ${activeTab === 'meta' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('meta')}
+        >
+          Snapshots de Auditoria
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'config' ? 'tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('config')}
+        >
+          Configurações de Regras
+        </button>
       </div>
 
-      <div className="detalhe-grid">
-        <div className="detalhe-col">
-          <div className="card detalhe-card">
-            <h2 className="card-section-title">Informações gerais</h2>
-            <dl className="info-list">
-              <dt>Tipo</dt><dd><TypeBadge type={doc.type} /></dd>
-              <dt>Categoria</dt><dd>{doc.defect_category}</dd>
-              <dt>Abertura</dt><dd>{new Date(doc.created_at).toLocaleDateString('pt-BR')}</dd>
-              <dt>Fornecedor</dt><dd>{doc.supplier_name || '—'}</dd>
-            </dl>
-          </div>
-
-          <div className="card detalhe-card">
-            <h2 className="card-section-title">Descrição</h2>
-            <p className="detalhe-desc">{doc.item_description}</p>
-          </div>
-
-          <div className="card detalhe-card">
-            <h2 className="card-section-title">Evidências</h2>
-            <EmptyState icon="📎" title="Nenhuma evidência" description="Upload disponível em breve." />
-          </div>
-        </div>
-
-        <div className="detalhe-col">
-          <div className="card detalhe-card">
-            <h2 className="card-section-title">Score GUT</h2>
-            <div className="gut-score-display">
-              <div className="gut-score-main">
-                <span className="gut-score-number">{score}</span>
-                <span className={`badge badge--gut-${color} badge--lg`}>{label}</span>
-              </div>
-              <div className="gut-score-breakdown">
-                {[['Gravidade', doc.gut_gravity], ['Urgência', doc.gut_urgency], ['Tendência', doc.gut_tendency]].map(([lbl, val], i, arr) => (
-                  <React.Fragment key={lbl}>
-                    <div className="gut-factor">
-                      <span className="gut-factor__label">{lbl}</span>
-                      <span className="gut-factor__value">{val}</span>
-                    </div>
-                    {i < arr.length - 1 && <span className="gut-factor__op">×</span>}
-                  </React.Fragment>
-                ))}
-              </div>
+      {activeTab === 'meta' && (
+        <div className="snapshot-grid">
+          <aside className="snapshot-list">
+            <div style={{ padding: 16, borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <small style={{ fontWeight: 700, color: '#64748b' }}>HISTÓRICO</small>
+              <button 
+                className={`btn-ghost ${compareWith ? 'btn-active' : ''}`}
+                style={{ fontSize: '0.7rem', padding: '2px 8px' }}
+                onClick={() => setCompareWith(compareWith ? null : {})}
+              >
+                {compareWith ? 'Sair da Comparação' : 'Modo Comparar'}
+              </button>
             </div>
-          </div>
+            {loading ? <p style={{ padding: 16 }}>Carregando...</p> : history.map(audit => (
+              <div 
+                key={audit.id} 
+                className={`snapshot-item ${selected?.id === audit.id || compareWith?.id === audit.id ? 'snapshot-item--active' : ''}`}
+                onClick={() => handleSelect(audit)}
+              >
+                <AuditTypeBadge type={audit.audit_type} />
+                <p className="snapshot-date">Período: {new Date(audit.period_start).toLocaleDateString()} - {new Date(audit.period_end).toLocaleDateString()}</p>
+                <p className="snapshot-meta">Executado por: {audit.executor_name}</p>
+              </div>
+            ))}
+          </aside>
 
-          <div className="card detalhe-card">
-            <h2 className="card-section-title">Timeline</h2>
-            <Timeline docId={doc.id} />
-          </div>
+          <main className="detail-view">
+            {selected ? (
+              <>
+                <header className="detail-header">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <AuditTypeBadge type={selected.audit_type} />
+                      <h2 style={{ margin: '8px 0' }}>{compareWith?.id ? 'Comparação de Snapshots' : 'Detalhamento da Auditoria'}</h2>
+                    </div>
+                  </div>
+                </header>
+                <MetricRenderer audit={selected} compareWith={compareWith?.id ? compareWith : null} />
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', marginTop: 100 }}>
+                <p style={{ color: '#94a3b8' }}>Selecione um snapshot para visualizar o rastro factual.</p>
+              </div>
+            )}
+          </main>
         </div>
-      </div>
-    </div>
-  );
-}
+      )}
 
-export default function Auditorias() {
-  const { documents, loading } = useDocumentos();
-  const [selected, setSelected] = useState(null);
-  const [search, setSearch]     = useState('');
-
-  if (selected) return <AuditoriaDetalhe doc={selected} onBack={() => setSelected(null)} />;
-
-  const ranked   = rankByGUT(documents);
-  const filtered = ranked.filter(d =>
-    !search ||
-    d.code.toLowerCase().includes(search.toLowerCase()) ||
-    (d.supplier_name || '').toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Auditorias</h1>
-          <p className="page-subtitle">Selecione um documento para análise completa</p>
+      {activeTab === 'config' && (
+        <div className="card" style={{ padding: 32, textAlign: 'center' }}>
+          <h3>Governança de Regras Invariantes</h3>
+          <p style={{ color: '#64748b' }}>As regras de negócio (BRs) são determinísticas e fixadas no backend. Esta área exibirá a documentação técnica das versões vigentes.</p>
         </div>
-      </div>
-
-      <div className="filters">
-        <input className="filter-input" placeholder="Buscar documento..."
-          value={search} onChange={e => setSearch(e.target.value)} />
-      </div>
-
-      <div className="card table-card">
-        {loading ? <p className="loading-text">Carregando...</p>
-        : filtered.length === 0 ? (
-          <EmptyState icon="🔍" title="Nenhum documento encontrado" />
-        ) : (
-          <table>
-            <thead>
-              <tr><th>Código</th><th>Tipo</th><th>Fornecedor</th><th>Status</th><th>Score GUT</th><th>Nível</th><th></th></tr>
-            </thead>
-            <tbody>
-              {filtered.map(d => {
-                const { label, color } = gutLevel(d.gutScore);
-                return (
-                  <tr key={d.id} className="row--clickable" onClick={() => setSelected(d)}>
-                    <td className="mono">{d.code}</td>
-                    <td><TypeBadge type={d.type} /></td>
-                    <td>{d.supplier_name || '—'}</td>
-                    <td><StatusBadge status={d.status} /></td>
-                    <td className="td-score">{d.gutScore}</td>
-                    <td><span className={`badge badge--gut-${color}`}>{label}</span></td>
-                    <td className="td-actions"><button className="btn-icon">→</button></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+      )}
     </div>
   );
 }
