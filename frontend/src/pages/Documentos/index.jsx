@@ -171,6 +171,26 @@ export default function Documentos() {
                     <td className="td-score">{score}</td>
                     <td className="text-sub">{new Date(d.created_at).toLocaleDateString('pt-BR')}</td>
                     <td className="td-actions">
+                      {d.type === 'RNC' && d.status === 'CONCLUIDO' && (
+                        <button className="btn-icon" title="Gerar Relatório 8D" 
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`${import.meta.env.VITE_API_URL}/reports/generate/${d.id}`, {
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                              });
+                              if (!res.ok) {
+                                const err = await res.json();
+                                throw new Error(err.error || 'Erro na geração');
+                              }
+                              const report = await res.json();
+                              window.open(`${import.meta.env.VITE_API_URL}/reports/download/${report.id}`, '_blank');
+                              toast('Relatório 8D gerado com sucesso');
+                            } catch (err) {
+                              toast(err.message, 'error');
+                            }
+                          }}>📄</button>
+                      )}
                       <button className="btn-icon" title="Editar" onClick={() => openEdit(d)}>✏️</button>
                       <button className="btn-icon btn-icon--danger" title="Excluir"
                         onClick={() => setConfirmId(d.id)}>🗑</button>

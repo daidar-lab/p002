@@ -6,6 +6,7 @@ import supplierRoutes from './suppliers.routes.js';
 import documentRoutes from './documents.routes.js';
 import portalRoutes from './portal.routes.js';
 import signatureRoutes from './signatures.routes.js';
+import reportRoutes from './report.routes.js';
 
 const router = Router();
 
@@ -15,5 +16,6 @@ router.use('/suppliers', supplierRoutes);
 router.use('/documents', documentRoutes);
 router.use('/portal', portalRoutes);
 router.use('/signatures', signatureRoutes);
+router.use('/reports', reportRoutes);
 
 export default router;
