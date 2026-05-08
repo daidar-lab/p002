@@ -2,9 +2,34 @@ import jwt from 'jsonwebtoken';
 import PortalRepository from '../repositories/PortalRepository.js';
 import DocumentRepository from '../repositories/DocumentRepository.js';
 import EfficacyRepository from '../repositories/EfficacyRepository.js';
+import MailService from './MailService.js';
 import pool from '../config/db.js';
 
 class PortalService {
+  /**
+   * Notifica o fornecedor enviando o Magic Link (BR-PORTAL-SOVEREIGN)
+   */
+  async notifySupplier(documentId) {
+    const { token, expires_at } = await this.generateLink(documentId);
+    const doc = await DocumentRepository.getById(documentId);
+    
+    if (!doc.supplier_email) {
+      throw new Error('Fornecedor sem e-mail cadastrado');
+    }
+
+    const portalUrl = `${process.env.APP_URL}/portal/evidence?token=${token}`;
+
+    const subject = `Ação Requerida: Submissão de Evidência — ${doc.code}`;
+    const text = `Olá ${doc.contact_name || 'Fornecedor'},\n\nO documento ${doc.code} (${doc.defect_category}) exige a submissão de evidências objetivas para as CAPAs acordadas.\n\nAcesse o link seguro abaixo para enviar as evidências:\n\n${portalUrl}\n\nEste link é de uso único e expira em ${new Date(expires_at).toLocaleString('pt-BR')}.\n\nAtenciosamente,\nEquipe de Qualidade Cidade Imperial`;
+
+    return await MailService.send({
+      to: doc.supplier_email,
+      subject,
+      text,
+      document_id: documentId,
+      triggered_by: 'sistema'
+    });
+  }
   /**
    * Gera um Magic Link soberano (Banco > JWT)
    */

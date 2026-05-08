@@ -8,6 +8,7 @@ import portalRoutes from './portal.routes.js';
 import signatureRoutes from './signatures.routes.js';
 import reportRoutes from './report.routes.js';
 import auditRoutes from './audit.routes.js';
+import notificationRoutes from './notification.routes.js';
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use('/portal', portalRoutes);
 router.use('/signatures', signatureRoutes);
 router.use('/reports', reportRoutes);
 router.use('/audits', auditRoutes);
+router.use('/notifications', notificationRoutes);
 
 export default router;

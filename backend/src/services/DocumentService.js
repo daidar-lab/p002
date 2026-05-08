@@ -4,6 +4,7 @@ import CapaRepository from '../repositories/CapaRepository.js';
 import EfficacyRepository from '../repositories/EfficacyRepository.js';
 import SignatureService from './SignatureService.js';
 import MailService from './MailService.js';
+import PortalService from './PortalService.js';
 import pool from '../config/db.js';
 
 class DocumentService {
@@ -495,6 +496,14 @@ class DocumentService {
       );
 
       await client.query('COMMIT');
+
+      // 5. Side Effect: Notificação do Fornecedor (Magic Link)
+      if (newStatus === 'ENVIADO_FORNECEDOR') {
+        PortalService.notifySupplier(documentId).catch(err => {
+          console.error('Falha na notificação assíncrona do fornecedor:', err.message);
+        });
+      }
+
       return { error: false };
     } catch (err) {
       await client.query('ROLLBACK');

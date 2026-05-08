@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import pool from '../config/db.js';
+import NotificationRepository from '../repositories/NotificationRepository.js';
 
 // ── Transporter (lazy — criado na primeira chamada) ────────
 let _transporter = null;
@@ -114,13 +115,18 @@ class MailService {
    * Alerta de reincidência para Qualidade e Compras (BR-05)
    */
   async sendRecurrenceAlert({ rnc_code, supplier_name, category, raqs_count }) {
-    // Em um cenário real, os e-mails de Qualidade e Compras viriam do .env ou config
-    const recipients = process.env.NOTIFICATION_EMAILS || process.env.SMTP_USER;
+    // 1. Busca destinatários na Matriz de Notificações (Governança Soberana)
+    const matrixRecipients = await NotificationRepository.getRecipientsByCategory(category);
+    
+    // Fallback para o usuário do SMTP caso a matriz esteja vazia
+    const recipients = matrixRecipients.length > 0 
+      ? matrixRecipients.join(',') 
+      : process.env.SMTP_USER;
     
     return this.send({
       to:          recipients,
       subject:     `🚨 ALERTA DE REINCIDÊNCIA: ${supplier_name} — ${rnc_code}`,
-      text:        `Atenção Equipe de Qualidade e Compras,\n\nO motor de decisão BR-05 detectou reincidência crítica para o fornecedor ${supplier_name} na categoria ${category}.\n\nForam encontradas ${raqs_count} RAQs anteriores nos últimos 12 meses. Por este motivo, a criação de uma nova RAQ foi bloqueada e um RNC (${rnc_code}) foi gerado automaticamente para análise de causa raiz.\n\nPor favor, verifique os detalhes no sistema.\n\nAtenciosamente,\nMotor de Decisão SGNC`,
+      text:        `Atenção Equipe de Gestão,\n\nO motor de decisão BR-05 detectou reincidência crítica para o fornecedor ${supplier_name} na categoria ${category}.\n\nForam encontradas ${raqs_count} RAQs anteriores nos últimos 12 meses. Por este motivo, a criação de uma nova RAQ foi bloqueada e um RNC (${rnc_code}) foi gerado automaticamente para análise de causa raiz.\n\nPor favor, verifique os detalhes no sistema.\n\nAtenciosamente,\nMotor de Decisão SGNC`,
       triggered_by: 'sistema'
     });
   }

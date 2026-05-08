@@ -18,6 +18,7 @@ import Fornecedores from './pages/Fornecedores/index.jsx';
 import Priorizacao  from './pages/Priorizacao/index.jsx';
 import Auditorias   from './pages/Auditorias/index.jsx';
 import Usuarios     from './pages/Usuarios/index.jsx';
+import Notificacoes from './pages/Configuracoes/Notificacoes.jsx';
 import PortalFornecedor from './pages/Portal/PortalFornecedor.jsx';
 
 import './index.css';
@@ -53,16 +54,26 @@ function Sidebar() {
           </NavLink>
         ))}
 
-        {/* ✅ Somente admin vê Usuários */}
+        {/* ✅ Somente admin vê Usuários e Configurações */}
         {user?.role === 'admin' && (
-          <NavLink
-            to="/usuarios"
-            className={({ isActive }) =>
-              `nav-item ${isActive ? 'nav-item--active' : ''}`
-            }
-          >
-            <span className="nav-item__label">Usuários</span>
-          </NavLink>
+          <>
+            <NavLink
+              to="/usuarios"
+              className={({ isActive }) =>
+                `nav-item ${isActive ? 'nav-item--active' : ''}`
+              }
+            >
+              <span className="nav-item__label">Usuários</span>
+            </NavLink>
+            <NavLink
+              to="/notificacoes"
+              className={({ isActive }) =>
+                `nav-item ${isActive ? 'nav-item--active' : ''}`
+              }
+            >
+              <span className="nav-item__label">Notificações</span>
+            </NavLink>
+          </>
         )}
       </nav>
 
@@ -108,6 +119,14 @@ function AppShell() {
             element={
               user.role === 'admin'
                 ? <Usuarios />
+                : <Navigate to="/dashboard" replace />
+            }
+          />
+          <Route
+            path="/notificacoes"
+            element={
+              user.role === 'admin'
+                ? <Notificacoes />
                 : <Navigate to="/dashboard" replace />
             }
           />
