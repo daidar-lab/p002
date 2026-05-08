@@ -1,0 +1,123 @@
+.signatures-panel {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 24px;
+  margin-top: 24px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.panel-header h4 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.1rem;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.status-badge.complete {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-badge.warning {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.roles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.role-card {
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 120px;
+}
+
+.role-card.signed {
+  background: #f8fafc;
+  border-left: 4px solid #16a34a;
+}
+
+.role-card.pending {
+  border-left: 4px solid #cbd5e1;
+}
+
+.role-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #64748b;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.signature-data {
+  font-size: 0.85rem;
+}
+
+.signed-by {
+  font-weight: 600;
+  margin: 0;
+}
+
+.signed-at {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 2px 0;
+}
+
+.hash {
+  font-family: monospace;
+  background: #f1f5f9;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  color: #475569;
+}
+
+.status-text {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  font-style: italic;
+  margin: 0;
+}
+
+.btn-sign {
+  margin-top: 12px;
+  padding: 8px;
+  background: #0f172a;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-sign:hover {
+  background: #1e293b;
+}
+
+.btn-sign:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

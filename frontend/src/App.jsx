@@ -18,6 +18,7 @@ import Fornecedores from './pages/Fornecedores/index.jsx';
 import Priorizacao  from './pages/Priorizacao/index.jsx';
 import Auditorias   from './pages/Auditorias/index.jsx';
 import Usuarios     from './pages/Usuarios/index.jsx';
+import PortalFornecedor from './pages/Portal/PortalFornecedor.jsx';
 
 import './index.css';
 
@@ -122,7 +123,10 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppShell />
+        <Routes>
+          <Route path="/portal/:token" element={<PortalFornecedor />} />
+          <Route path="*" element={<AppShell />} />
+        </Routes>
         <ToastContainer />
       </BrowserRouter>
     </AuthProvider>

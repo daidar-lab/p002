@@ -1,6 +1,8 @@
 import DocumentRepository from '../repositories/DocumentRepository.js';
 import RootCauseRepository from '../repositories/RootCauseRepository.js';
 import CapaRepository from '../repositories/CapaRepository.js';
+import EfficacyRepository from '../repositories/EfficacyRepository.js';
+import SignatureService from './SignatureService.js';
 import MailService from './MailService.js';
 import pool from '../config/db.js';
 
@@ -328,9 +330,76 @@ class DocumentService {
     }
 
     return {
-      decision: 'ALLOW_PROGRESS',
+      decision: isValid ? 'ALLOW_PROGRESS' : 'BLOCK_WORKFLOW',
       rule_applied: 'BR-CAPA-01',
       deterministic: true
+    };
+  }
+
+  /**
+   * Motor Determinístico de Verificação de Eficácia (BR-EVE - HARDENED)
+   */
+  async evaluateEfficacy(documentId) {
+    if (!documentId) {
+      return { decision: 'INSUFFICIENT_CONTEXT' };
+    }
+
+    // A. Busca dados do RNC
+    const doc = await DocumentRepository.getById(documentId);
+    
+    // B. Busca CAPAs ativas
+    const capas = await CapaRepository.findActiveByDocumentId(documentId);
+    
+    // 1. Filtro de Execução: Todas devem estar CONCLUIDAS
+    const allFinished = capas.length > 0 && capas.every(c => c.status === 'CONCLUIDO');
+    if (!allFinished) {
+      return await this._persistEfficacyDecision(documentId, 'BLOCK_WORKFLOW', ['BR-EVE-01'], 'CAPAs não concluídas ou inexistentes.');
+    }
+
+    // C. Pega data da última implementação
+    const implementationDate = new Date(Math.max(...capas.map(c => new Date(c.updated_at || c.created_at))));
+
+    // 2. Validação BR-EVE-02: Evidências Objetivas
+    for (const capa of capas) {
+      const evidences = await EfficacyRepository.findObjectiveEvidencesByCapaId(capa.id);
+      if (evidences.length === 0) {
+        return await this._persistEfficacyDecision(documentId, 'BLOCK_WORKFLOW', ['BR-EVE-02'], `CAPA ID ${capa.id} sem evidência objetiva.`);
+      }
+    }
+
+    // 3. Validação BR-EVE-03: Reincidência Pós-Implementação
+    const recurrence = await EfficacyRepository.findPostImplementationRecurrence(
+      doc.supplier_id, 
+      doc.defect_category, 
+      implementationDate
+    );
+
+    if (recurrence) {
+      return await this._persistEfficacyDecision(
+        documentId, 
+        'REABERTURA_AUTOMATICA', 
+        ['BR-EVE-03'], 
+        `Reincidência detectada: Documento ${recurrence.code} criado em ${recurrence.created_at}.`
+      );
+    }
+
+    // 4. Decisão Positiva
+    return await this._persistEfficacyDecision(documentId, 'ENCERRAMENTO_DEFINITIVO', ['BR-EVE-01', 'BR-EVE-02', 'BR-EVE-03'], 'Eficácia validada com sucesso.');
+  }
+
+  async _persistEfficacyDecision(documentId, decision, rules, summary) {
+    const record = await EfficacyRepository.saveDecision({
+      document_id: documentId,
+      decision,
+      rules_applied: rules,
+      evidence_summary: summary
+    });
+
+    return {
+      decision,
+      rules_applied: rules,
+      deterministic: true,
+      audit_trail_id: record.id
     };
   }
 
@@ -352,7 +421,7 @@ class DocumentService {
       
       const { status: oldStatus, type: docType } = docResult.rows[0];
 
-      // 2. Gate de Encerramento para RNC (ACR + CAPA)
+      // 2. Gatekeeper Soberano para RNC (Encerramento)
       if (newStatus === 'CONCLUIDO' && docType === 'RNC') {
         // Validação ACR
         const acrEval = await this.evaluateACR(documentId);
@@ -361,15 +430,58 @@ class DocumentService {
           return { error: true, status: 403, message: 'Bloqueio: ACR inválida.', evaluation: acrEval };
         }
 
-        // Validação CAPA (Hardened)
+        // Validação CAPA
         const capaEval = await this.evaluateCAPA(documentId);
         if (capaEval.decision === 'BLOCK_WORKFLOW') {
           await client.query('ROLLBACK');
           return { error: true, status: 403, message: 'Bloqueio: CAPA incompleta.', evaluation: capaEval };
         }
+
+        // MOTOR DE EFICÁCIA (Soberano)
+        const effEval = await this.evaluateEfficacy(documentId);
+        
+        if (effEval.decision === 'REABERTURA_AUTOMATICA') {
+          // BR-EVE-03: Retrocede workflow
+          await client.query(
+            'UPDATE audit_quality.documents SET status = $1, updated_at = NOW() WHERE id = $2',
+            ['EM_ANALISE', documentId]
+          );
+          await client.query(
+            `INSERT INTO audit_quality.status_history (document_id, old_status, new_status, changed_by) 
+             VALUES ($1, $2, 'EM_ANALISE', 'motor_eficacia')`,
+            [documentId, oldStatus]
+          );
+          await client.query('COMMIT');
+          return { 
+            error: true, 
+            status: 409, 
+            message: 'REABERTURA AUTOMÁTICA: Reincidência detectada pelo motor de eficácia.', 
+            evaluation: effEval 
+          };
+        }
+
+        if (effEval.decision === 'BLOCK_WORKFLOW') {
+          await client.query('ROLLBACK');
+          return { error: true, status: 403, message: 'Bloqueio: Eficácia não comprovada.', evaluation: effEval };
+        }
+        
+        // Se chegou aqui, a decisão é ENCERRAMENTO_DEFINITIVO
       }
 
-      // 3. Atualiza o documento
+      // 3. Gate de Encerramento Administrativo (Assinaturas Paralelas)
+      if (newStatus === 'ENCERRADO' && docType === 'RNC') {
+        const isComplete = await SignatureService.isSignOffComplete(documentId);
+        if (!isComplete) {
+          await client.query('ROLLBACK');
+          return { 
+            error: true, 
+            status: 403, 
+            message: 'Bloqueio: Encerramento administrativo exige a coleta de todas as assinaturas obrigatórias.' 
+          };
+        }
+      }
+
+      // 4. Atualiza o documento
       await client.query(
         'UPDATE audit_quality.documents SET status = $1, updated_at = NOW() WHERE id = $2',
         [newStatus, documentId]
