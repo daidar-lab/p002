@@ -38,3 +38,4 @@ scratch/
 # Banco de Dados (Arquivos de Dados Locais se houver)
 *.sqlite
 *.db
+.env 
