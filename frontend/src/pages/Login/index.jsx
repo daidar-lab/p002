@@ -12,9 +12,9 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      login(form.username, form.password);
+      await login(form.username, form.password);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Falha na autenticação. Verifique suas credenciais.');
     } finally {
       setLoading(false);
     }

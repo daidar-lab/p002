@@ -10,25 +10,8 @@ import { toast } from '../../components/Toast.jsx';
 const EMPTY_FORM = {
   code: '', type: 'RNC', supplier_id: '',
   item_description: '', defect_category: 'QUALIDADE', status: 'ABERTO',
-  gut_gravity: 5, gut_urgency: 5, gut_tendency: 5,
 };
 
-function GUTInput({ label, name, value, onChange }) {
-  return (
-    <label className="form-label">
-      {label}
-      <div className="gut-input-wrap">
-        <input
-          type="range" min="1" max="9" step="1"
-          className="gut-range"
-          value={value}
-          onChange={onChange}
-        />
-        <span className="gut-input-val">{value}</span>
-      </div>
-    </label>
-  );
-}
 
 export default function Documentos() {
   const { documents, loading, error, addDocument, updateDocument, deleteDocument } = useDocumentos();
@@ -68,9 +51,6 @@ export default function Documentos() {
       const payload = {
         ...form,
         supplier_id:  form.supplier_id  ? Number(form.supplier_id)  : null,
-        gut_gravity:  Number(form.gut_gravity),
-        gut_urgency:  Number(form.gut_urgency),
-        gut_tendency: Number(form.gut_tendency),
       };
       if (editing) {
         await updateDocument(editing, payload);
@@ -154,21 +134,17 @@ export default function Documentos() {
               <tr>
                 <th>Código</th><th>Tipo</th><th>Fornecedor</th>
                 <th>Descrição</th><th>Status</th>
-                <th title="Score GUT">GUT</th>
                 <th>Data</th><th></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(d => {
-                const score = (d.gut_gravity ?? 5) + (d.gut_urgency ?? 5) + (d.gut_tendency ?? 5);
-                return (
-                  <tr key={d.id}>
-                    <td className="mono">{d.code}</td>
-                    <td><TypeBadge type={d.type} /></td>
-                    <td>{d.supplier_name || <span className="text-sub">—</span>}</td>
-                    <td className="td-desc">{d.item_description}</td>
-                    <td><StatusBadge status={d.status} /></td>
-                    <td className="td-score">{score}</td>
+              {filtered.map(d => (
+                <tr key={d.id}>
+                  <td className="mono">{d.code}</td>
+                  <td><TypeBadge type={d.type} /></td>
+                  <td>{d.supplier_name || <span className="text-sub">—</span>}</td>
+                  <td className="td-desc">{d.item_description}</td>
+                  <td><StatusBadge status={d.status} /></td>
                     <td className="text-sub">{new Date(d.created_at).toLocaleDateString('pt-BR')}</td>
                     <td className="td-actions">
                       {d.type === 'RNC' && d.status === 'CONCLUIDO' && (
@@ -177,7 +153,7 @@ export default function Documentos() {
                             try {
                               const res = await fetch(`${import.meta.env.VITE_API_URL}/reports/generate/${d.id}`, {
                                 method: 'POST',
-                                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                                headers: { 'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}` }
                               });
                               if (!res.ok) {
                                 const err = await res.json();
@@ -196,9 +172,8 @@ export default function Documentos() {
                         onClick={() => setConfirmId(d.id)}>🗑</button>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
+                ))}
+              </tbody>
           </table>
         )}
       </div>
@@ -251,22 +226,6 @@ export default function Documentos() {
               value={form.item_description} onChange={set('item_description')} required />
           </label>
 
-          <div className="gut-section">
-            <p className="gut-section__title">Scores GUT</p>
-            <GUTInput label={`Gravidade (G) — ${form.gut_gravity}`} name="gut_gravity"
-              value={form.gut_gravity}
-              onChange={e => setForm(f => ({ ...f, gut_gravity: e.target.value }))} />
-            <GUTInput label={`Urgência (U) — ${form.gut_urgency}`} name="gut_urgency"
-              value={form.gut_urgency}
-              onChange={e => setForm(f => ({ ...f, gut_urgency: e.target.value }))} />
-            <GUTInput label={`Tendência (T) — ${form.gut_tendency}`} name="gut_tendency"
-              value={form.gut_tendency}
-              onChange={e => setForm(f => ({ ...f, gut_tendency: e.target.value }))} />
-            <div className="gut-preview">
-              Score: <strong>{form.gut_gravity * form.gut_urgency * form.gut_tendency}</strong>
-              {' '}/ 729
-            </div>
-          </div>
 
           <div className="form-actions">
             <button type="button" className="btn-ghost" onClick={() => setDrawerOpen(false)}>Cancelar</button>

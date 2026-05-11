@@ -37,7 +37,8 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const result = await DocumentService.update(
     Number(req.params.id),
-    req.body
+    req.body,
+    req.user.name
   );
   res.json(result.data ?? result);
 });

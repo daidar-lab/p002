@@ -15,7 +15,6 @@ import Login        from './pages/Login/index.jsx';
 import Dashboard    from './pages/Dashboard/index.jsx';
 import Documentos   from './pages/Documentos/index.jsx';
 import Fornecedores from './pages/Fornecedores/index.jsx';
-import Priorizacao  from './pages/Priorizacao/index.jsx';
 import Auditorias   from './pages/Auditorias/index.jsx';
 import Usuarios     from './pages/Usuarios/index.jsx';
 import Notificacoes from './pages/Configuracoes/Notificacoes.jsx';
@@ -27,7 +26,6 @@ const NAV = [
   { to: '/dashboard',    label: 'Dashboard' },
   { to: '/documentos',   label: 'Documentos' },
   { to: '/fornecedores', label: 'Fornecedores' },
-  { to: '/priorizacao',  label: 'Priorização' },
   { to: '/auditorias',   label: 'Auditorias' },
 ];
 
@@ -110,7 +108,6 @@ function AppShell() {
           <Route path="/dashboard"    element={<Dashboard />} />
           <Route path="/documentos"   element={<Documentos />} />
           <Route path="/fornecedores" element={<Fornecedores />} />
-          <Route path="/priorizacao"  element={<Priorizacao />} />
           <Route path="/auditorias"   element={<Auditorias />} />
 
           {/* ✅ Proteção por ROLE */}

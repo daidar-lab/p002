@@ -29,12 +29,12 @@ class PortalRepository {
   async getPortalViewData(documentId) {
     const query = `
       SELECT 
-        d.id, d.code, d.status, d.supplier_id, d.defect_category, d.description as rnc_description,
+        d.id, d.code, d.status, d.supplier_id, d.defect_category, d.item_description as rnc_description,
         s.name as supplier_name,
         rc.type as acr_type, rc.root_cause,
         (SELECT json_agg(c) FROM audit_quality.capas c WHERE c.document_id = d.id AND c.status != 'CANCELADO') as capas
       FROM audit_quality.documents d
-      JOIN audit_quality.suppliers s ON s.id = d.supplier_id
+      LEFT JOIN audit_quality.suppliers s ON s.id = d.supplier_id
       LEFT JOIN audit_quality.root_cause_analyses rc ON rc.document_id = d.id
       WHERE d.id = $1
     `;

@@ -18,17 +18,17 @@ export default function Dashboard() {
 
   if (loading) return <div className="page"><p className="loading-text">Carregando dashboard...</p></div>;
 
-  const total      = documents.length;
-  const abertos    = documents.filter(d => d.status === 'ABERTO').length;
-  const emAnalise  = documents.filter(d => d.status === 'EM_ANALISE').length;
+  const total = documents.length;
+  const abertos = documents.filter(d => d.status === 'ABERTO').length;
+  const emAnalise = documents.filter(d => d.status === 'EM_ANALISE').length;
   const concluidos = documents.filter(d => d.status === 'CONCLUIDO').length;
 
-  const withScore  = documents.map(d => ({
+  const withScore = documents.map(d => ({
     ...d,
     gutScore: calcGUT(d.gut_gravity, d.gut_urgency, d.gut_tendency),
   }));
   const criticos = withScore.filter(d => gutLevel(d.gutScore).color === 'critico').length;
-  const top5     = [...withScore].sort((a, b) => b.gutScore - a.gutScore).slice(0, 5);
+  const top5 = [...withScore].sort((a, b) => b.gutScore - a.gutScore).slice(0, 5);
 
   const byType = ['RNC', 'RAQ', 'RHE'].map(t => ({
     type: t,
@@ -54,7 +54,6 @@ export default function Dashboard() {
         <KpiCard label="Abertos" value={abertos} accent="warning" />
         <KpiCard label="Em análise" value={emAnalise} accent="info" />
         <KpiCard label="Concluídos" value={concluidos} accent="success" />
-        <KpiCard label="Críticos (GUT)" value={criticos} accent="danger" sub="Score ≥ 21" />
       </div>
 
       <div className="dash-grid">
@@ -83,11 +82,11 @@ export default function Dashboard() {
           <h2 className="card-section-title">Status dos documentos</h2>
           <div className="dash-status-list">
             {[
-              { label: 'Aberto',           status: 'ABERTO',             count: abertos },
-              { label: 'Em análise',       status: 'EM_ANALISE',         count: emAnalise },
-              { label: 'Env. Fornecedor',  status: 'ENVIADO_FORNECEDOR', count: documents.filter(d => d.status === 'ENVIADO_FORNECEDOR').length },
-              { label: 'Concluído',        status: 'CONCLUIDO',          count: concluidos },
-              { label: 'Cancelado',        status: 'CANCELADO',          count: documents.filter(d => d.status === 'CANCELADO').length },
+              { label: 'Aberto', status: 'ABERTO', count: abertos },
+              { label: 'Em análise', status: 'EM_ANALISE', count: emAnalise },
+              { label: 'Env. Fornecedor', status: 'ENVIADO_FORNECEDOR', count: documents.filter(d => d.status === 'ENVIADO_FORNECEDOR').length },
+              { label: 'Concluído', status: 'CONCLUIDO', count: concluidos },
+              { label: 'Cancelado', status: 'CANCELADO', count: documents.filter(d => d.status === 'CANCELADO').length },
             ].map(({ label, status, count }) => (
               <div key={status} className="dash-status-row">
                 <StatusBadge status={status} />
@@ -97,36 +96,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Top 5 GUT */}
-        <div className="card dash-card dash-card--wide">
-          <h2 className="card-section-title">Top 5 — Maior score GUT</h2>
-          {top5.length === 0 ? (
-            <p className="text-sub" style={{ fontSize: 13 }}>Nenhum documento cadastrado.</p>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th><th>Código</th><th>Tipo</th><th>Fornecedor</th><th>Score GUT</th><th>Nível</th>
-                </tr>
-              </thead>
-              <tbody>
-                {top5.map((d, i) => {
-                  const { label, color } = gutLevel(d.gutScore);
-                  return (
-                    <tr key={d.id}>
-                      <td className="td-rank text-sub">{i + 1}º</td>
-                      <td className="mono">{d.code}</td>
-                      <td><TypeBadge type={d.type} /></td>
-                      <td>{d.supplier_name || '—'}</td>
-                      <td className="td-score">{d.gutScore}</td>
-                      <td><span className={`badge badge--gut-${color}`}>{label}</span></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
 
         {/* Recentes */}
         <div className="card dash-card dash-card--wide">

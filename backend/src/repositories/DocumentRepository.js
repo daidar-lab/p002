@@ -13,10 +13,6 @@ class DocumentRepository {
         d.supplier_id,
         s.name   AS supplier_name,
         s.email  AS supplier_email,
-        d.gut_gravity,
-        d.gut_urgency,
-        d.gut_tendency,
-        (d.gut_gravity * d.gut_urgency * d.gut_tendency) AS gut_score,
         d.created_at,
         d.updated_at
       FROM audit_quality.documents d
@@ -38,7 +34,7 @@ class DocumentRepository {
         d.*,
         s.name  AS supplier_name,
         s.email AS supplier_email,
-        (d.gut_gravity * d.gut_urgency * d.gut_tendency) AS gut_score
+        s.contact_name
       FROM audit_quality.documents d
       LEFT JOIN audit_quality.suppliers s ON d.supplier_id = s.id
       WHERE d.id = $1

@@ -188,14 +188,21 @@ class DocumentService {
     return `${type}-${year}-${sequence.toString().padStart(3, '0')}`;
   }
 
-  async update(documentId, data) {
+  async update(documentId, data, changedBy = 'sistema') {
     const {
       code, type, status, supplier_id,
-      item_description, defect_category,
-      gut_gravity, gut_urgency, gut_tendency
+      item_description, defect_category
     } = data;
 
     try {
+      // 1. Antes de atualizar, verifica se o status está mudando
+      const current = await pool.query('SELECT status FROM audit_quality.documents WHERE id = $1', [documentId]);
+      const oldStatus = current.rows[0]?.status;
+
+      if (status && oldStatus && status !== oldStatus) {
+        return await this.changeStatus(documentId, status, changedBy);
+      }
+
       const result = await pool.query(
         `UPDATE audit_quality.documents SET
           code             = COALESCE($1, code),
@@ -204,17 +211,13 @@ class DocumentService {
           supplier_id      = COALESCE($4, supplier_id),
           item_description = COALESCE($5, item_description),
           defect_category  = COALESCE($6, defect_category),
-          gut_gravity      = COALESCE($7, gut_gravity),
-          gut_urgency      = COALESCE($8, gut_urgency),
-          gut_tendency     = COALESCE($9, gut_tendency),
           updated_at       = NOW()
-        WHERE id = $10
+        WHERE id = $7
         RETURNING *`,
         [
           code, type, status,
           supplier_id || null,
           item_description, defect_category,
-          gut_gravity, gut_urgency, gut_tendency,
           documentId
         ]
       );
@@ -504,7 +507,9 @@ class DocumentService {
         });
       }
 
-      return { error: false };
+      // BUSCA O DOCUMENTO ATUALIZADO PARA DEVOLVER AO FRONTEND
+      const updatedDoc = await DocumentRepository.getById(documentId);
+      return { error: false, data: updatedDoc };
     } catch (err) {
       await client.query('ROLLBACK');
       return { error: true, message: err.message };

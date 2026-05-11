@@ -19,10 +19,11 @@ class UserRepository {
     return rows[0] || null;
   }
 
-  async getByUsername(username) {
+  async getByUsername(usernameOrEmail) {
     const { rows } = await pool.query(
-      `SELECT * FROM audit_quality.users WHERE username = $1`,
-      [username]
+      `SELECT * FROM audit_quality.users 
+       WHERE username = $1 OR email = $1`,
+      [usernameOrEmail]
     );
     return rows[0] || null;
   }

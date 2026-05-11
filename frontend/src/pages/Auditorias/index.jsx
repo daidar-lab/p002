@@ -96,12 +96,16 @@ export default function Auditorias() {
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_URL}/audits/history`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}` }
     })
       .then(res => res.json())
       .then(data => {
-        setHistory(data);
-        if (data.length > 0) setSelected(data[0]);
+        if (Array.isArray(data)) {
+          setHistory(data);
+          if (data.length > 0) setSelected(data[0]);
+        } else {
+          setHistory([]);
+        }
       })
       .finally(() => setLoading(false));
   }, []);

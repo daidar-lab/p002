@@ -14,10 +14,13 @@ export default function Notificacoes() {
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_URL}/notifications`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}` }
     })
       .then(res => res.json())
-      .then(data => setMatrix(data))
+      .then(data => {
+        if (Array.isArray(data)) setMatrix(data);
+        else setMatrix([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -40,7 +43,7 @@ export default function Notificacoes() {
         method,
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` 
+          'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}` 
         },
         body: JSON.stringify(form)
       });

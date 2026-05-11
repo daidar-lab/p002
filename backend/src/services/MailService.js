@@ -17,8 +17,13 @@ function getTransporter() {
   _transporter = nodemailer.createTransport({
     host:   SMTP_HOST,
     port:   Number(SMTP_PORT) || 587,
-    secure: Number(SMTP_PORT) === 465,
+    secure: false, // true para 465, false para outras portas
     auth: { user: SMTP_USER, pass: SMTP_PASS },
+    tls: {
+      ciphers: 'SSLv3',
+      rejectUnauthorized: false // Permite certificados auto-assinados se necessário
+    },
+    requireTLS: true
   });
 
   return _transporter;
@@ -62,7 +67,7 @@ class MailService {
    * @returns {{ ok: boolean, error?: string }}
    */
   async send({ to, subject, text, html, document_id, triggered_by }) {
-    const from = process.env.SMTP_USER;
+    const from = `"SGNC - Cidade Imperial" <${process.env.SMTP_USER}>`;
 
     try {
       const transporter = getTransporter();

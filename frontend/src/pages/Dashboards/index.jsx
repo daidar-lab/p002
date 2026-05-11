@@ -26,10 +26,13 @@ export default function Dashboards() {
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_URL}/audits/history`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}` }
     })
       .then(res => res.json())
-      .then(data => setHistory(data))
+      .then(data => {
+        if (Array.isArray(data)) setHistory(data);
+        else setHistory([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 

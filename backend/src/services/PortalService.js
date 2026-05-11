@@ -17,7 +17,7 @@ class PortalService {
       throw new Error('Fornecedor sem e-mail cadastrado');
     }
 
-    const portalUrl = `${process.env.APP_URL}/portal/evidence?token=${token}`;
+    const portalUrl = `${process.env.APP_URL}/portal/${token}`;
 
     const subject = `Ação Requerida: Submissão de Evidência — ${doc.code}`;
     const text = `Olá ${doc.contact_name || 'Fornecedor'},\n\nO documento ${doc.code} (${doc.defect_category}) exige a submissão de evidências objetivas para as CAPAs acordadas.\n\nAcesse o link seguro abaixo para enviar as evidências:\n\n${portalUrl}\n\nEste link é de uso único e expira em ${new Date(expires_at).toLocaleString('pt-BR')}.\n\nAtenciosamente,\nEquipe de Qualidade Cidade Imperial`;
@@ -73,6 +73,8 @@ class PortalService {
 
       return linkRecord;
     } catch (err) {
+      console.error(`[PORTAL ERROR] Falha na validação do token: ${err.message}`);
+      if (err.name === 'JsonWebTokenError') console.error('Erro de assinatura JWT. Verifique se o JWT_SECRET no .env é o mesmo de quando o link foi gerado.');
       throw new Error(`Acesso negado: ${err.message}`);
     }
   }
