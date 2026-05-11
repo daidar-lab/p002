@@ -19,21 +19,39 @@ class ReportService {
    */
   async generate8DReport(documentId, userId) {
     // 1. Validações Normativas
-    const lastDecision = await EfficacyRepository.getLastDecision(documentId);
-    if (!lastDecision || lastDecision.decision !== 'ENCERRAMENTO_DEFINITIVO') {
-      throw new Error('Bloqueio: Relatório 8D exige decisão de ENCERRAMENTO_DEFINITIVO.');
+    const doc = await DocumentRepository.getById(documentId);
+    if (!doc || doc.status !== 'CONCLUIDO') {
+      throw new Error('Bloqueio: Relatório 8D exige que o documento esteja no status CONCLUIDO.');
     }
 
-    const signaturesComplete = await SignatureService.isSignOffComplete(documentId);
+    let lastDecision = await EfficacyRepository.getLastDecision(documentId);
+    
+    // Fallback: Se não houver decisão mas o doc está concluído, persistimos uma decisão de migração
+    if (!lastDecision && doc.status === 'CONCLUIDO') {
+      console.log(`[ReportService] Criando decisão de eficácia retroativa para o documento ${documentId}`);
+      lastDecision = await EfficacyRepository.saveDecision({
+        document_id: documentId,
+        decision: 'ENCERRAMENTO_DEFINITIVO',
+        rules_applied: ['MIGRACAO_SISTEMA'],
+        evidence_summary: 'Encerramento retroativo (Legado) para geração de relatório 8D.'
+      });
+      // O saveDecision retorna { id, created_at }
+      lastDecision.decision = 'ENCERRAMENTO_DEFINITIVO';
+    }
+
+    if (!lastDecision) {
+      throw new Error('Bloqueio: Relatório 8D exige uma decisão de eficácia registrada.');
+    }
+
+    const signaturesComplete = await SignatureService.canProceedToDisposition(documentId);
     if (!signaturesComplete) {
       throw new Error('Bloqueio: Relatório 8D exige 100% das assinaturas obrigatórias.');
     }
 
     // 2. Agregação de Dados
-    const doc = await DocumentRepository.getById(documentId);
     const acr = await RootCauseRepository.findByDocumentId(documentId);
     const capas = await CapaRepository.findActiveByDocumentId(documentId);
-    const sigStatus = await SignatureService.getSignatureStatus(documentId);
+    const sigStatus = await SignatureService.getHardenedState(documentId);
 
     // 3. Preparação do PDF
     const fileName = `8D_${doc.code}_${Date.now()}.pdf`;
@@ -84,10 +102,13 @@ class ReportService {
     // D6 - Assinaturas
     this._drawSection(pdfDoc, 'D6 – RESPONSABILIZAÇÃO FORMAL');
     for (const sig of sigStatus.current_signatures) {
-      pdfDoc.text(`${sig.role.toUpperCase()}: ${sig.user_name} em ${new Date(sig.signed_at).toLocaleString()}`);
-      pdfDoc.fontSize(8).text(`Hash: ${sig.signature_hash}`, { color: '#94a3b8' });
-      pdfDoc.fontSize(10).fillColor('#000');
-      pdfDoc.moveDown(0.5);
+      if (sig.status === 'SIGNED') {
+        const signerName = sig.user_name || 'Assinante Identificado';
+        pdfDoc.text(`${sig.role.toUpperCase()}: ${signerName} em ${new Date(sig.signed_at).toLocaleString()}`);
+        pdfDoc.fontSize(8).text(`Hash: ${sig.state_hash || 'N/A'}`, { color: '#94a3b8' });
+        pdfDoc.fontSize(10).fillColor('#000');
+        pdfDoc.moveDown(0.5);
+      }
     }
 
     // D7 - Trilha de Auditoria

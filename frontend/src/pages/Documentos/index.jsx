@@ -35,11 +35,7 @@ export default function Documentos() {
   const openEdit = (doc) => {
     setEditing(doc.id);
     setForm({
-      code: doc.code, type: doc.type,
-      supplier_id: doc.supplier_id ?? '',
-      item_description: doc.item_description,
-      defect_category: doc.defect_category,
-      status: doc.status,
+      ...doc,
       occurrence_context: doc.occurrence_context || 'PRODUCT',
       impact_regulatory: doc.impact_regulatory || false,
       impact_customer: doc.impact_customer || false,
@@ -176,12 +172,12 @@ export default function Documentos() {
         </select>
         <select className="filter-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">Todos os status</option>
-          <option value="ABERTO">Aberto</option>
-          <option value="EM_ANALISE">Em Análise</option>
-          <option value="ENVIADO_FORNECEDOR">Env. Fornecedor</option>
-          <option value="AGUARDANDO_ASSINATURAS">Aguardando Assinaturas</option>
-          <option value="AGUARDANDO_DISPOSICAO">Aguardando Disposição</option>
-          <option value="CONCLUIDO">Concluído</option>
+          <option value="ABERTO">1. Aberto (Triagem)</option>
+          <option value="EM_ANALISE">2. Em Análise (Tratamento)</option>
+          <option value="AGUARDANDO_ASSINATURAS">3. Aguardando Assinaturas</option>
+          <option value="ENVIADO_FORNECEDOR">4. Enviado ao Fornecedor</option>
+          <option value="AGUARDANDO_DISPOSICAO">5. Aguardando Disposição</option>
+          <option value="CONCLUIDO">6. Concluído</option>
           <option value="CANCELADO">Cancelado</option>
         </select>
       </div>
@@ -192,7 +188,7 @@ export default function Documentos() {
         {loading ? (
           <p className="loading-text">Carregando...</p>
         ) : filtered.length === 0 ? (
-          <EmptyState icon="📄" title="Nenhum documento encontrado"
+          <EmptyState icon="" title="Nenhum documento encontrado"
             description="Ajuste os filtros ou crie um novo documento."
             action={<button className="btn-primary" onClick={openNew}>+ Novo Documento</button>} />
         ) : (
@@ -234,12 +230,13 @@ export default function Documentos() {
                                 throw new Error(err.error || 'Erro na geração');
                               }
                               const report = await res.json();
-                              window.open(`${import.meta.env.VITE_API_URL}/reports/download/${report.id}`, '_blank');
+                              const token = sessionStorage.getItem('aq_token');
+                            window.open(`${import.meta.env.VITE_API_URL}/reports/download/${report.id}?token=${token}`, '_blank');
                               toast('Relatório 8D gerado com sucesso');
                             } catch (err) {
                               toast(err.message, 'error');
                             }
-                          }}>📄</button>
+                          }}>8D</button>
                       )}
                       <button className="btn-icon" title="Editar" onClick={() => openEdit(d)}>✏️</button>
                       <button className="btn-icon btn-icon--danger" title="Excluir"
@@ -269,12 +266,12 @@ export default function Documentos() {
             </label>
             <label className="form-label">Status
               <select className="form-input" value={form.status} onChange={set('status')}>
-                <option value="ABERTO">Aberto</option>
-                <option value="EM_ANALISE">Em Análise</option>
-                <option value="ENVIADO_FORNECEDOR">Env. Fornecedor</option>
-                <option value="AGUARDANDO_ASSINATURAS">Aguardando Assinaturas</option>
-                <option value="AGUARDANDO_DISPOSICAO">Aguardando Disposição</option>
-                <option value="CONCLUIDO">Concluído</option>
+                <option value="ABERTO">1. Aberto (Triagem)</option>
+                <option value="EM_ANALISE">2. Em Análise (Tratamento)</option>
+                <option value="AGUARDANDO_ASSINATURAS">3. Aguardando Assinaturas</option>
+                <option value="ENVIADO_FORNECEDOR">4. Enviado ao Fornecedor</option>
+                <option value="AGUARDANDO_DISPOSICAO">5. Aguardando Disposição</option>
+                <option value="CONCLUIDO">6. Concluído</option>
                 <option value="CANCELADO">Cancelado</option>
               </select>
             </label>
@@ -298,7 +295,7 @@ export default function Documentos() {
 
           {form.type === 'RNC' && (
             <div className="severity-panel" style={{ padding: '1rem', background: '#f1f5f9', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <p style={{ fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '1rem' }}>🛡️ AVALIAÇÃO DE SEVERIDADE (AUTOMÁTICA)</p>
+              <p style={{ fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '1rem' }}>AVALIAÇÃO DE SEVERIDADE (AUTOMÁTICA)</p>
               
               <label className="form-label">Contexto da Ocorrência
                 <select className="form-input" value={form.occurrence_context} onChange={set('occurrence_context')}>
@@ -347,11 +344,11 @@ export default function Documentos() {
           {editing && form.status === 'AGUARDANDO_ASSINATURAS' && signatures && (
             <div className="signatures-panel" style={{ marginTop: '1.5rem', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
               <div style={{ background: '#f8fafc', padding: '10px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>🖊️ ASSINATURAS EM PARALELO (BR-07)</span>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>ASSINATURAS EM PARALELO (BR-07)</span>
                 {signatures.closureAllowed && (
                   <button type="button" className="btn-primary" style={{ padding: '4px 8px', fontSize: '10px' }}
                     onClick={() => setForm(f => ({ ...f, status: 'AGUARDANDO_DISPOSICAO' }))}>
-                    Liberar para Disposição ➡️
+                    Liberar para Disposição
                   </button>
                 )}
               </div>
@@ -367,9 +364,9 @@ export default function Documentos() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {s.status === 'ESCALATED' && <span title="SLA Estourado" style={{ fontSize: '14px' }}>⚠️</span>}
+                      {s.status === 'ESCALATED' && <span title="SLA Estourado" style={{ fontSize: '14px', color: '#ef4444' }}>(!)</span>}
                       {s.status === 'SIGNED' ? (
-                        <span style={{ color: '#10b981', fontWeight: '700', fontSize: '11px' }}>✅ OK</span>
+                        <span style={{ color: '#10b981', fontWeight: '700', fontSize: '11px' }}>OK</span>
                       ) : (
                         <button type="button" className="btn-ghost" style={{ padding: '4px 8px', fontSize: '10px' }}
                           onClick={() => handleSign(s.role)}>Assinar</button>
@@ -384,7 +381,7 @@ export default function Documentos() {
           {form.status === 'AGUARDANDO_DISPOSICAO' && (
             <div className="disposition-panel" style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
               <p style={{ fontWeight: 'bold', color: '#1e293b', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                🛡️ Disposição de Material (BR-06)
+                Disposição de Material (BR-06)
               </p>
               
               <label className="form-label">Decisão de Disposição

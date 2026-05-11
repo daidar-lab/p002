@@ -7,6 +7,18 @@ const router = Router();
 router.use(verifyToken);
 
 /**
+ * Lista assinaturas pendentes para o usuário logado
+ */
+router.get('/pending', async (req, res) => {
+  try {
+    const result = await SignatureService.getPendingByUser(req.user.id, req.user.role);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * Consulta o status das assinaturas de um documento
  */
 router.get('/:documentId/status', async (req, res) => {

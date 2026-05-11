@@ -4,27 +4,29 @@ class AuditRepository {
   /**
    * Auditoria de Fluxo: Lead times e gargalos
    */
+  /**
+   * Auditoria de Fluxo: Lead times e gargalos via status_history
+   */
   async analyzeFlow(start, end) {
     const query = `
-      WITH status_changes AS (
+      WITH transitions AS (
         SELECT 
           document_id,
+          new_status as status,
           created_at,
-          action,
-          detail,
-          LAG(created_at) OVER (PARTITION BY document_id ORDER BY created_at) as prev_time
-        FROM audit_quality.audit_logs
+          LAG(created_at) OVER (PARTITION BY document_id ORDER BY created_at) as prev_time,
+          LAG(new_status) OVER (PARTITION BY document_id ORDER BY created_at) as prev_status
+        FROM audit_quality.status_history
         WHERE created_at BETWEEN $1 AND $2
-          AND action = 'Status alterado'
       )
       SELECT 
         COUNT(*) as total_transitions,
         AVG(created_at - prev_time) as avg_transition_time,
-        detail as transition_path,
+        'De "' || COALESCE(prev_status, 'ABERTO') || '" para "' || status || '"' as transition_path,
         COUNT(*) FILTER (WHERE (created_at - prev_time) > interval '48 hours') as late_transitions
-      FROM status_changes
+      FROM transitions
       WHERE prev_time IS NOT NULL
-      GROUP BY detail
+      GROUP BY status, prev_status
     `;
     const result = await pool.query(query, [start, end]);
     return result.rows;
@@ -48,17 +50,21 @@ class AuditRepository {
   }
 
   /**
-   * Auditoria de Assinaturas: Latência por papel
+   * Auditoria de Assinaturas: Latência por papel (Tempo desde AGUARDANDO_ASSINATURAS)
    */
   async analyzeSignatures(start, end) {
     const query = `
       SELECT 
         s.role,
         COUNT(*) as total_signatures,
-        AVG(s.signed_at - ed.created_at) as avg_latency
+        AVG(s.signed_at - (
+          SELECT MIN(created_at) 
+          FROM audit_quality.status_history 
+          WHERE document_id = s.document_id AND new_status = 'AGUARDANDO_ASSINATURAS'
+        )) as avg_latency
       FROM audit_quality.signatures s
-      JOIN audit_quality.efficacy_decisions ed ON ed.id = s.decision_uuid
       WHERE s.signed_at BETWEEN $1 AND $2
+        AND s.status = 'SIGNED'
       GROUP BY s.role
     `;
     const result = await pool.query(query, [start, end]);

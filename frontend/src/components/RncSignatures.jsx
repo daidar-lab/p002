@@ -8,7 +8,7 @@ const RncSignatures = ({ documentId, userRole, onSignSuccess }) => {
 
   const fetchStatus = () => {
     fetch(`${import.meta.env.VITE_API_URL}/signatures/${documentId}/status`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}` }
     })
       .then(res => res.json())
       .then(setStatus)
@@ -28,7 +28,7 @@ const RncSignatures = ({ documentId, userRole, onSignSuccess }) => {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}`
         },
         body: JSON.stringify({ role: userRole })
       });
@@ -60,7 +60,7 @@ const RncSignatures = ({ documentId, userRole, onSignSuccess }) => {
       <div className="roles-grid">
         {status.required_roles.map(role => {
           const sig = status.current_signatures.find(s => s.role === role);
-          const isMyRole = userRole === role;
+          const isMyRole = userRole === role || userRole === 'admin';
 
           return (
             <div key={role} className={`role-card ${sig ? 'signed' : 'pending'}`}>

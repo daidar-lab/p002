@@ -84,7 +84,7 @@ export default function Notificacoes() {
                   <td><span className="badge">{m.defect_category}</span></td>
                   <td>{m.role_name}</td>
                   <td style={{ fontWeight: 600 }}>{m.email}</td>
-                  <td>{m.is_active ? '✅ Ativo' : '❌ Inativo'}</td>
+                  <td>{m.is_active ? 'Ativo' : 'Inativo'}</td>
                   <td className="td-actions">
                     <button className="btn-icon" onClick={() => openEdit(m)}>✏️</button>
                   </td>

@@ -9,7 +9,7 @@ class CapaRepository {
       SELECT * 
       FROM audit_quality.capas 
       WHERE document_id = $1 
-        AND status IN ('PENDENTE', 'CONCLUIDO')
+        AND status IN ('PENDENTE', 'CONCLUIDO', 'IMPLEMENTADO')
     `;
     const result = await pool.query(query, [documentId]);
     return result.rows;

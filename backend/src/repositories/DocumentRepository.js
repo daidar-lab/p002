@@ -11,6 +11,7 @@ class DocumentRepository {
         d.item_description,
         d.defect_category,
         d.supplier_id,
+        d.severity,
         s.name   AS supplier_name,
         s.email  AS supplier_email,
         d.created_at,
@@ -51,7 +52,18 @@ class DocumentRepository {
   // No seu DocumentRepository.js, substitua o getTimeline:
   async getTimeline(documentId) {
     const query = `
-      -- Parte 1: Mudanças de Status (Mapeado para o seu t.action e t.detail)
+      -- 1. Abertura do Documento
+      SELECT 
+        created_at,
+        'Documento Criado' AS action,
+        'O registro foi aberto no sistema sob o código: ' || code AS detail,
+        'sistema' AS user_name
+      FROM audit_quality.documents
+      WHERE id = $1
+
+      UNION ALL
+
+      -- 2. Mudanças de Status
       SELECT 
         created_at,
         'Status alterado para ' || new_status AS action,
@@ -62,7 +74,7 @@ class DocumentRepository {
 
       UNION ALL
 
-      -- Parte 2: Envios de E-mail
+      -- 3. Envios de E-mail
       SELECT 
         sent_at AS created_at,
         'E-mail enviado: ' || subject AS action,
@@ -70,6 +82,63 @@ class DocumentRepository {
         triggered_by AS user_name
       FROM audit_quality.email_logs
       WHERE document_id = $1
+
+      UNION ALL
+      
+      -- 4. Assinaturas Digitais (BR-07)
+      SELECT 
+        s.signed_at AS created_at,
+        'Assinatura realizada: ' || s.role AS action,
+        'Assinado digitalmente por: ' || u.name || ' (ID: ' || u.id || ')' AS detail,
+        u.username AS user_name
+      FROM audit_quality.signatures s
+      JOIN audit_quality.users u ON u.id = s.user_id
+      WHERE s.document_id = $1 AND s.status = 'SIGNED'
+
+      UNION ALL
+
+      -- 5. Análise de Causa Raiz (Portal do Fornecedor)
+      SELECT 
+        created_at,
+        'Causa Raiz Identificada (' || type || ')' AS action,
+        'Causa: ' || root_cause AS detail,
+        'fornecedor' AS user_name
+      FROM audit_quality.root_cause_analyses
+      WHERE document_id = $1
+
+      UNION ALL
+
+      -- 6. Criação de CAPAs
+      SELECT 
+        created_at,
+        'Plano de Ação (CAPA) Registrado' AS action,
+        'Tipo: ' || type || ' | Descrição: ' || description AS detail,
+        'fornecedor' AS user_name
+      FROM audit_quality.capas
+      WHERE document_id = $1
+
+      UNION ALL
+
+      -- 7. Evidências Técnicas (Vínculo com CAPA)
+      SELECT 
+        ce.created_at,
+        'Evidência Submetida' AS action,
+        'Descrição: ' || ce.description || ' | Objetivo: ' || (CASE WHEN ce.is_objective THEN 'Sim' ELSE 'Não' END) AS detail,
+        'fornecedor' AS user_name
+      FROM audit_quality.capa_evidences ce
+      JOIN audit_quality.capas c ON c.id = ce.capa_id
+      WHERE c.document_id = $1
+
+      UNION ALL
+
+      -- 8. Disposição de Material (Finalização)
+      SELECT 
+        disposition_at AS created_at,
+        'Disposição de Material Realizada' AS action,
+        'Decisão: ' || material_disposition AS detail,
+        'gestor' AS user_name
+      FROM audit_quality.documents
+      WHERE id = $1 AND material_disposition IS NOT NULL
 
       ORDER BY created_at DESC
     `;

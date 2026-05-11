@@ -18,6 +18,8 @@ import Fornecedores from './pages/Fornecedores/index.jsx';
 import Auditorias   from './pages/Auditorias/index.jsx';
 import Usuarios     from './pages/Usuarios/index.jsx';
 import Notificacoes from './pages/Configuracoes/Notificacoes.jsx';
+import Assinaturas  from './pages/Assinaturas/index.jsx';
+import AuditoriaView from './pages/Auditoria/index.jsx';
 import PortalFornecedor from './pages/Portal/PortalFornecedor.jsx';
 
 import './index.css';
@@ -25,8 +27,10 @@ import './index.css';
 const NAV = [
   { to: '/dashboard',    label: 'Dashboard' },
   { to: '/documentos',   label: 'Documentos' },
+  { to: '/assinaturas',  label: 'Assinar RNC' },
+  { to: '/auditoria',    label: 'Centro de Auditoria' },
   { to: '/fornecedores', label: 'Fornecedores' },
-  { to: '/auditorias',   label: 'Auditorias' },
+  { to: '/auditorias',   label: 'Plano de Auditorias' },
 ];
 
 function Sidebar() {
@@ -107,6 +111,8 @@ function AppShell() {
           <Route path="/"             element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard"    element={<Dashboard />} />
           <Route path="/documentos"   element={<Documentos />} />
+          <Route path="/assinaturas"  element={<Assinaturas />} />
+          <Route path="/auditoria"    element={<AuditoriaView />} />
           <Route path="/fornecedores" element={<Fornecedores />} />
           <Route path="/auditorias"   element={<Auditorias />} />
 

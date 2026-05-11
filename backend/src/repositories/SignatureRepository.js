@@ -8,7 +8,7 @@ class SignatureRepository {
     const query = `
       SELECT s.*, u.name as user_name 
       FROM audit_quality.signatures s
-      LEFT JOIN audit_quality.users u ON u.id::text = s.user_id
+      LEFT JOIN audit_quality.users u ON u.id = s.user_id
       WHERE s.document_id = $1
       ORDER BY s.requested_at ASC
     `;
@@ -71,6 +71,20 @@ class SignatureRepository {
       WHERE s.status = 'PENDING' AND s.sla_deadline < NOW()
     `;
     const result = await pool.query(query);
+    return result.rows;
+  }
+
+  async getPendingByRole(role) {
+    const query = `
+      SELECT s.*, d.code, d.type as doc_type, d.severity, d.item_description, f.name as supplier_name
+      FROM audit_quality.signatures s
+      JOIN audit_quality.documents d ON d.id = s.document_id
+      LEFT JOIN audit_quality.suppliers f ON f.id = d.supplier_id
+      WHERE s.status = 'PENDING' 
+      AND (s.role = $1::text OR $2::text = 'admin')
+      ORDER BY s.requested_at ASC
+    `;
+    const result = await pool.query(query, [role, role]);
     return result.rows;
   }
 }

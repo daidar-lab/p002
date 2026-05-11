@@ -75,11 +75,42 @@ class AuditService {
     });
   }
 
+  /**
+   * Disparo automatizado para Auditoria Geral (30 dias)
+   */
+  async generateAutoSnapshots(executedBy) {
+    const end = new Date().toISOString();
+    const start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    
+    // Dispara tipos críticos em paralelo
+    const types = ['FLOW', 'SIGNATURE', 'DECISION'];
+    const results = [];
+    
+    for (const type of types) {
+      try {
+        const res = await this.runAudit(type, start, end, executedBy);
+        results.push(res);
+      } catch (e) {
+        console.error(`Falha ao gerar snapshot ${type}:`, e.message);
+      }
+    }
+    
+    return { success: true, count: results.length };
+  }
+
   _intervalToMs(interval) {
     if (!interval) return 0;
-    // Helper simples para converter intervalo do PG para MS (aproximado)
-    // Em produção, usar uma lib como 'postgres-interval'
-    return typeof interval === 'string' ? 0 : interval; 
+    if (typeof interval === 'number') return interval;
+    
+    // Converte objeto de intervalo do PG para MS
+    let ms = 0;
+    if (interval.days) ms += interval.days * 24 * 60 * 60 * 1000;
+    if (interval.hours) ms += interval.hours * 60 * 60 * 1000;
+    if (interval.minutes) ms += interval.minutes * 60 * 1000;
+    if (interval.seconds) ms += interval.seconds * 1000;
+    if (interval.milliseconds) ms += interval.milliseconds;
+    
+    return ms;
   }
 
   async getHistory() {

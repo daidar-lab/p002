@@ -228,6 +228,11 @@ tr:hover .td-actions { opacity: 1; }
 .badge--rnc      { background: #fee2e2; color: #991b1b; }
 .badge--raq      { background: #dbeafe; color: #1e3a8a; }
 .badge--rhe      { background: #ede9fe; color: #5b21b6; }
+.badge--gut-critical { background: #ef4444; color: #fff; } /* Vermelho Vivo */
+.badge--gut-high     { background: #f97316; color: #fff; } /* Laranja */
+.badge--gut-medium   { background: #eab308; color: #000; } /* Amarelo */
+.badge--gut-low      { background: #22c55e; color: #fff; } /* Verde */
+.badge--gut-not_applicable { background: #94a3b8; color: #fff; }
 .badge--aberto   { background: #fef9c3; color: #854d0e; }
 .badge--analise  { background: #e0f2fe; color: #0c4a6e; }
 .badge--enviado  { background: #fce7f3; color: #9d174d; }

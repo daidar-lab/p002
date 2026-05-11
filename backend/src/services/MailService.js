@@ -17,13 +17,15 @@ function getTransporter() {
   _transporter = nodemailer.createTransport({
     host:   SMTP_HOST,
     port:   Number(SMTP_PORT) || 587,
-    secure: false, // true para 465, false para outras portas
+    secure: false, 
     auth: { user: SMTP_USER, pass: SMTP_PASS },
     tls: {
-      ciphers: 'SSLv3',
-      rejectUnauthorized: false // Permite certificados auto-assinados se necessário
+      ciphers: 'SSLv3', // Algumas libs de integração ainda exigem, mas vamos garantir o STARTTLS
+      rejectUnauthorized: false 
     },
-    requireTLS: true
+    requireTLS: true,
+    debug: true, // Habilita debug para vermos o erro exato no terminal se falhar
+    logger: true 
   });
 
   return _transporter;
@@ -132,6 +134,25 @@ class MailService {
       to:          recipients,
       subject:     `🚨 ALERTA DE REINCIDÊNCIA: ${supplier_name} — ${rnc_code}`,
       text:        `Atenção Equipe de Gestão,\n\nO motor de decisão BR-05 detectou reincidência crítica para o fornecedor ${supplier_name} na categoria ${category}.\n\nForam encontradas ${raqs_count} RAQs anteriores nos últimos 12 meses. Por este motivo, a criação de uma nova RAQ foi bloqueada e um RNC (${rnc_code}) foi gerado automaticamente para análise de causa raiz.\n\nPor favor, verifique os detalhes no sistema.\n\nAtenciosamente,\nMotor de Decisão SGNC`,
+      triggered_by: 'sistema'
+    });
+  }
+
+  /**
+   * Notifica gestores sobre assinaturas pendentes (BR-07)
+   */
+  async sendSignatureRequest({ code, roles, document_id }) {
+    // Import dinâmico para evitar dependência circular se necessário
+    const UserRepository = (await import('../repositories/UserRepository.js')).default;
+    const managerEmails = await UserRepository.getByRoles(roles);
+    
+    if (managerEmails.length === 0) return;
+
+    return this.send({
+      to:          managerEmails.join(','),
+      subject:     `🖊️ ASSINATURA PENDENTE: ${code}`,
+      text:        `Atenção Gestor,\n\nO documento ${code} está pronto para revisão técnica e requer sua assinatura digital.\n\nEste documento segue o fluxo de conformidade da Cidade Imperial com SLA monitorado. Por favor, acesse o sistema para revisar e assinar.\n\nAtenciosamente,\nSistema de Gestão de Não Conformidades`,
+      document_id,
       triggered_by: 'sistema'
     });
   }

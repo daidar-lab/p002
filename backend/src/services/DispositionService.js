@@ -92,7 +92,9 @@ class DispositionService {
 
       const docResult = await client.query(`
         SELECT d.type, d.status, 
-               (SELECT COUNT(*) FROM audit_quality.capas WHERE document_id = d.id AND status != 'CONCLUIDO') as pending_capas
+               (SELECT COUNT(*) FROM audit_quality.capas 
+                WHERE document_id = d.id 
+                AND status NOT IN ('CONCLUIDO', 'IMPLEMENTADO')) as pending_capas
         FROM audit_quality.documents d WHERE d.id = $1
       `, [documentId]);
       
@@ -107,7 +109,7 @@ class DispositionService {
         ncType: doc.type,
         ncStatus: doc.status,
         materialDisposition: disposition,
-        capaStatus: doc.pending_capas === '0' ? 'COMPLETED' : 'NOT_COMPLETED',
+        capaStatus: Number(doc.pending_capas) === 0 ? 'COMPLETED' : 'NOT_COMPLETED',
         effectivenessRequired: doc.type === 'RNC',
         effectivenessStatus: 'APPROVED', // Fluxo verificado no DocumentService
         exportFlag: false, // Expansível via metadata

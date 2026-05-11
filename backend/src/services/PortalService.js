@@ -17,7 +17,7 @@ class PortalService {
       throw new Error('Fornecedor sem e-mail cadastrado');
     }
 
-    const portalUrl = `${process.env.APP_URL}/portal/${token}`;
+    const portalUrl = `${process.env.FRONTEND_URL}/portal/${token}`;
 
     const subject = `Ação Requerida: Submissão de Evidência — ${doc.code}`;
     const text = `Olá ${doc.contact_name || 'Fornecedor'},\n\nO documento ${doc.code} (${doc.defect_category}) exige a submissão de evidências objetivas para as CAPAs acordadas.\n\nAcesse o link seguro abaixo para enviar as evidências:\n\n${portalUrl}\n\nEste link é de uso único e expira em ${new Date(expires_at).toLocaleString('pt-BR')}.\n\nAtenciosamente,\nEquipe de Qualidade Cidade Imperial`;
@@ -90,25 +90,78 @@ class PortalService {
   async submitEvidence(token, evidenceData) {
     const linkRecord = await this.validateAccess(token);
     const client = await pool.connect();
+    const doc = await DocumentRepository.getById(linkRecord.document_id);
 
     try {
       await client.query('BEGIN');
 
-      // 1. Persiste a evidência (BR-PORTAL-04)
-      // data: { capa_id, description, is_objective }
+      // 1. Registra a Causa Raiz (Identificada pelo Fornecedor)
+      // data: JSONB obrigatório conforme SPEC
+      const rcRes = await client.query(
+        `INSERT INTO audit_quality.root_cause_analyses (document_id, type, root_cause, data)
+         VALUES ($1, '5_WHYS', $2, $3)
+         RETURNING id`,
+        [linkRecord.document_id, evidenceData.root_cause, JSON.stringify({ identified_by: 'fornecedor', source: 'portal' })]
+      );
+
+      const acrId = rcRes.rows[0].id;
+
+      // 2. Cria a CAPA correspondente (Preenchendo campos NOT NULL)
+      // due_date: +30 dias padrão / criteria: auto / responsible: fornecedor
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30);
+
+      const typeMapping = {
+        'CORRETIVA': 'CORRECTIVE',
+        'PREVENTIVA': 'PREVENTIVE',
+        'PREDITIVA': 'PREDICTIVE'
+      };
+
+      const dbType = typeMapping[evidenceData.capa_type] || 'CORRECTIVE';
+
+      const capaRes = await client.query(
+        `INSERT INTO audit_quality.capas (
+          document_id, type, description, status, 
+          due_date, efficacy_criteria, responsible, root_cause_link
+         )
+         VALUES ($1, $2, $3, 'IMPLEMENTADO', $4, $5, $6, $7)
+         RETURNING id`,
+        [
+          linkRecord.document_id, 
+          dbType, 
+          evidenceData.capa_description,
+          dueDate,
+          'Verificação de não reincidência em 90 dias',
+          doc.supplier_name || 'Fornecedor',
+          acrId.toString()
+        ]
+      );
+
+      // 3. Persiste a evidência (com suporte a foto na descrição se houver)
+      const fullEvidenceDesc = evidenceData.photo_url 
+        ? `${evidenceData.evidence_description}\n\n[EVIDÊNCIA VISUAL]: ${evidenceData.photo_url}`
+        : evidenceData.evidence_description;
+
       await client.query(
         `INSERT INTO audit_quality.capa_evidences (capa_id, description, is_objective)
          VALUES ($1, $2, $3)`,
-        [evidenceData.capa_id, evidenceData.description, evidenceData.is_objective === true]
+        [capaRes.rows[0].id, fullEvidenceDesc, evidenceData.is_objective === true]
       );
 
-      // 2. Marca link como usado (Atomicidade e Uso Único)
+      // 4. Marca link como usado
       await PortalRepository.markAsUsed(linkRecord.token_id);
+
+      // 5. Avança o status do documento
+      await client.query(
+        `UPDATE audit_quality.documents SET status = 'AGUARDANDO_DISPOSICAO', updated_at = NOW() WHERE id = $1`,
+        [linkRecord.document_id]
+      );
 
       await client.query('COMMIT');
       return { success: true };
     } catch (err) {
       await client.query('ROLLBACK');
+      console.error('[PORTAL SUBMISSION ERROR]', err);
       throw err;
     } finally {
       client.release();

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import SignatureRepository from '../repositories/SignatureRepository.js';
 import DocumentRepository from '../repositories/DocumentRepository.js';
+import MailService from './MailService.js';
 
 class SignatureService {
   REQUIRED_ROLES = ['QUALITY_ANALYST', 'QUALITY_COORDINATOR', 'CGI', 'LOGISTICS', 'PCP'];
@@ -26,6 +27,13 @@ class SignatureService {
 
     await SignatureRepository.dispatchParallel(documentId, this.REQUIRED_ROLES, deadline.toISOString());
     console.log(`[BR-07] Despacho paralelo concluído para RNC ${documentId}. SLA: ${slaHours}h`);
+
+    // Notificação assíncrona dos gestores
+    MailService.sendSignatureRequest({
+      code: doc.code,
+      roles: this.REQUIRED_ROLES,
+      document_id: documentId
+    }).catch(err => console.error('[MAIL ERROR] Falha na notificação de assinaturas:', err.message));
   }
 
   /**
@@ -48,7 +56,19 @@ class SignatureService {
     // State Hashing
     const stateHash = this.calculateStateHash(documentId, role, userId);
 
-    return await SignatureRepository.updateToSigned(sig.id, userId, stateHash);
+    const updatedSig = await SignatureRepository.updateToSigned(sig.id, userId, stateHash);
+
+    // ✅ AUTO-TRANSITION (BR-07 Hardened): Se todas as assinaturas estão OK, move para ENVIADO_FORNECEDOR
+    const allSigned = await this.canProceedToDisposition(documentId);
+    if (allSigned) {
+      console.log(`[BR-07 AUTO] Todas as assinaturas concluídas para o documento ${documentId}. Movendo para ENVIADO_FORNECEDOR.`);
+      
+      // Import dinâmico para evitar dependência circular
+      const DocumentService = (await import('./DocumentService.js')).default;
+      await DocumentService.changeStatus(documentId, 'ENVIADO_FORNECEDOR', 'sistema_assinaturas');
+    }
+
+    return updatedSig;
   }
 
   /**
@@ -93,23 +113,22 @@ class SignatureService {
     return signatures.every(s => s.status === 'SIGNED');
   }
 
+  async getPendingByUser(userId, role) {
+    return await SignatureRepository.getPendingByRole(role);
+  }
+
   async getHardenedState(documentId) {
     const doc = await DocumentRepository.getById(documentId);
     const signatures = await SignatureRepository.getByDocumentId(documentId);
     
     // Constrói o Output Contract conforme a SPEC
     return {
-      ncId: documentId,
-      severity: doc.severity,
-      signatures: signatures.map(s => ({
-        role: s.role,
-        status: s.status,
-        requestedAt: s.requested_at,
-        slaDeadline: s.sla_deadline,
-        signedAt: s.signed_at,
-        escalationLevel: s.escalation_level
-      })),
-      closureAllowed: await this.canProceedToDisposition(documentId)
+      documentId,
+      severity: doc?.severity,
+      required_roles: this.REQUIRED_ROLES,
+      current_signatures: signatures,
+      can_sign: doc?.status === 'AGUARDANDO_ASSINATURAS',
+      all_signed: signatures.every(s => s.status === 'SIGNED')
     };
   }
 }

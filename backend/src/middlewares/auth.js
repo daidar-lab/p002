@@ -4,19 +4,17 @@ import jwt from 'jsonwebtoken';
  * Middleware: verifica se o token JWT é válido
  */
 export function verifyToken(req, res, next) {
+  let token = req.query.token;
   const authHeader = req.headers.authorization;
 
-  if (!authHeader) {
-    return res.status(401).json({
-      error: 'Token não informado.',
-    });
+  if (authHeader) {
+    const [type, t] = authHeader.split(' ');
+    if (type === 'Bearer') token = t;
   }
 
-  const [type, token] = authHeader.split(' ');
-
-  if (type !== 'Bearer' || !token) {
+  if (!token) {
     return res.status(401).json({
-      error: 'Token mal formatado.',
+      error: 'Token não informado.',
     });
   }
 

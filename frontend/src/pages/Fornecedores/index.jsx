@@ -90,12 +90,12 @@ export default function Fornecedores() {
         </select>
       </div>
 
-      {error && <p className="error-banner">⚠ {error}</p>}
+      {error && <p className="error-banner">! {error}</p>}
 
       <div className="card table-card">
         {loading ? <p className="loading-text">Carregando...</p>
         : filtered.length === 0 ? (
-          <EmptyState icon="🏭" title="Nenhum fornecedor encontrado"
+          <EmptyState icon="" title="Nenhum fornecedor encontrado"
             action={<button className="btn-primary" onClick={openNew}>+ Novo Fornecedor</button>} />
         ) : (
           <table>

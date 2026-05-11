@@ -32,7 +32,7 @@ export default function Dashboard() {
     return (
       <div className="page">
         <div className="audit-lockout" style={{ textAlign: 'center', marginTop: '100px', padding: '40px', background: '#fff', borderRadius: '12px', border: '2px dashed #cbd5e1' }}>
-          <span style={{ fontSize: '48px' }}>🔒</span>
+          <span style={{ fontSize: '48px' }}></span>
           <h2 style={{ marginTop: '20px', color: '#1e293b' }}>Aguardando Auditoria de Período</h2>
           <p style={{ color: '#64748b', maxWidth: '400px', margin: '10px auto' }}>
             Este dashboard está configurado para o modo <b>Missão Crítica</b>. 
@@ -104,30 +104,6 @@ export default function Dashboard() {
         </div>
 
 
-        {/* Recentes */}
-        <div className="card dash-card dash-card--wide">
-          <h2 className="card-section-title">Documentos recentes</h2>
-          {recent.length === 0 ? (
-            <p className="text-sub" style={{ fontSize: 13 }}>Nenhum documento cadastrado.</p>
-          ) : (
-            <table>
-              <thead>
-                <tr><th>Código</th><th>Tipo</th><th>Fornecedor</th><th>Status</th><th>Data</th></tr>
-              </thead>
-              <tbody>
-                {recent.map(d => (
-                  <tr key={d.id}>
-                    <td className="mono">{d.code}</td>
-                    <td><TypeBadge type={d.type} /></td>
-                    <td>{d.supplier_name || '—'}</td>
-                    <td><StatusBadge status={d.status} /></td>
-                    <td className="text-sub">{new Date(d.created_at).toLocaleDateString('pt-BR')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
       </div>
     </div>
   );

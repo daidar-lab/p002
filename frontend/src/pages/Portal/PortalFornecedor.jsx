@@ -10,9 +10,12 @@ const PortalFornecedor = () => {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // Estados do formulário de evidência
-  const [selectedCapa, setSelectedCapa] = useState('');
-  const [description, setDescription] = useState('');
+  // Estados do formulário soberano
+  const [rootCause, setRootCause] = useState('');
+  const [capaType, setCapaType] = useState('CORRETIVA');
+  const [capaDescription, setCapaDescription] = useState('');
+  const [evidenceDescription, setEvidenceDescription] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
   const [isObjective, setIsObjective] = useState(false);
 
   useEffect(() => {
@@ -28,7 +31,9 @@ const PortalFornecedor = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedCapa) return alert('Selecione uma CAPA');
+    if (!rootCause || !capaDescription || !evidenceDescription) {
+      return alert('Por favor, preencha todos os campos obrigatórios.');
+    }
     
     setSubmitting(true);
     try {
@@ -36,15 +41,18 @@ const PortalFornecedor = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          capa_id: selectedCapa,
-          description,
+          root_cause: rootCause,
+          capa_type: capaType,
+          capa_description: capaDescription,
+          evidence_description: evidenceDescription,
+          photo_url: photoUrl,
           is_objective: isObjective
         })
       });
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || 'Erro ao submeter');
+        throw new Error(err.error || 'Erro ao submeter evidência');
       }
 
       setSuccess(true);
@@ -59,8 +67,8 @@ const PortalFornecedor = () => {
   if (error) return <div className="portal-error"><h1>Acesso Negado</h1><p>{error}</p></div>;
   if (success) return (
     <div className="portal-success">
-      <h1>Evidência Enviada</h1>
-      <p>Sua submissão foi registrada com sucesso e o link foi invalidado por segurança.</p>
+      <h1>Submissão Concluída</h1>
+      <p>Obrigado! Seus dados foram processados com sucesso e o acesso foi encerrado para sua segurança.</p>
     </div>
   );
 
@@ -74,44 +82,67 @@ const PortalFornecedor = () => {
 
       <main className="portal-content">
         <section className="info-section">
-          <h3>Resumo da Não Conformidade</h3>
+          <h3>Resumo da Ocorrência</h3>
           <div className="card">
             <p><strong>Defeito:</strong> {data.defect_category}</p>
             <p><strong>Descrição:</strong> {data.rnc_description}</p>
           </div>
 
-          <h3>Análise de Causa Raiz</h3>
+          <h3>1. Análise de Causa Raiz (ACR)</h3>
           <div className="card highlight">
-            <p><strong>Causa Identificada:</strong> {data.root_cause}</p>
+            <label className="form-label">Descreva o motivo real da falha (Causa Raiz):</label>
+            <textarea 
+              value={rootCause}
+              onChange={(e) => setRootCause(e.target.value)}
+              placeholder="Ex: Falha no sensor de temperatura durante o lote X..."
+              required
+              rows={4}
+              style={{ width: '100%', marginTop: '8px' }}
+            />
           </div>
         </section>
 
         <section className="form-section">
-          <h3>Submissão de Evidência Técnica</h3>
+          <h3>2. Plano de Ação e Evidência</h3>
           <form onSubmit={handleSubmit} className="evidence-form">
+            
             <div className="form-group">
-              <label>Selecione a Ação (CAPA):</label>
-              <select 
-                value={selectedCapa} 
-                onChange={(e) => setSelectedCapa(e.target.value)}
-                required
-              >
-                <option value="">Selecione...</option>
-                {data.capas?.map(capa => (
-                  <option key={capa.id} value={capa.id}>
-                    [{capa.type}] {capa.description}
-                  </option>
-                ))}
+              <label>Tipo de Ação (CAPA):</label>
+              <select value={capaType} onChange={(e) => setCapaType(e.target.value)}>
+                <option value="CORRETIVA">Ação Corretiva</option>
+                <option value="PREVENTIVA">Ação Preventiva</option>
+                <option value="PREDITIVA">Ação Preditiva</option>
               </select>
             </div>
 
             <div className="form-group">
-              <label>Descrição Detalhada da Evidência:</label>
-              <textarea 
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Descreva como a ação foi executada e quais as evidências objetivas..."
+              <label>Descrição da Ação Executada:</label>
+              <input 
+                type="text"
+                value={capaDescription}
+                onChange={(e) => setCapaDescription(e.target.value)}
+                placeholder="Ex: Substituição do componente e recalibração..."
                 required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Evidências Técnicas (Detalhes):</label>
+              <textarea 
+                value={evidenceDescription}
+                onChange={(e) => setEvidenceDescription(e.target.value)}
+                placeholder="Liste laudos ou detalhes técnicos da ação..."
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>URL de Foto/Anexo (Opcional):</label>
+              <input 
+                type="text"
+                value={photoUrl}
+                onChange={(e) => setPhotoUrl(e.target.value)}
+                placeholder="Link da imagem (Google Drive, Dropbox, etc.)..."
               />
             </div>
 
@@ -122,15 +153,11 @@ const PortalFornecedor = () => {
                 checked={isObjective}
                 onChange={(e) => setIsObjective(e.target.checked)}
               />
-              <label htmlFor="isObjective"> Declaro que esta é uma <strong>evidência objetiva</strong> e verificável.</label>
-            </div>
-
-            <div className="disclaimer">
-              <p>⚠️ <strong>Nota:</strong> Esta submissão é de uso único. Ao enviar, o acesso será encerrado e os dados serão processados pelo Motor de Eficácia do SGNC.</p>
+              <label htmlFor="isObjective"> Confirmo que os dados acima são <strong>evidências objetivas</strong>.</label>
             </div>
 
             <button type="submit" disabled={submitting} className="btn-submit">
-              {submitting ? 'Enviando...' : 'Confirmar Submissão Técnica'}
+              {submitting ? 'Enviando...' : 'Confirmar e Encerrar Submissão'}
             </button>
           </form>
         </section>

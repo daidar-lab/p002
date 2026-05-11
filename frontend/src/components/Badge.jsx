@@ -12,6 +12,7 @@ const STATUS_COLORS = {
   CONCLUIDO:  'badge--concluido',
   AGUARDANDO_ASSINATURAS: 'badge--assinaturas',
   AGUARDANDO_DISPOSICAO: 'badge--disposicao',
+  ENVIADO_FORNECEDOR: 'badge--enviado',
   CANCELADO:  'badge--cancelado',
 };
 
@@ -21,6 +22,7 @@ const STATUS_LABELS = {
   CONCLUIDO:  'Concluído',
   AGUARDANDO_ASSINATURAS: 'Aguardando Assinaturas',
   AGUARDANDO_DISPOSICAO: 'Aguardando Disposição',
+  ENVIADO_FORNECEDOR: 'Enviado ao Fornecedor',
   CANCELADO:  'Cancelado',
 };
 

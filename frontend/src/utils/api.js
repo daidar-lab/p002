@@ -55,6 +55,12 @@ export const api = {
     req('PATCH', `/documents/${id}/status`, { status: s }),
   getTimeline: (id) =>
     req('GET', `/documents/${id}/timeline`),
+  getSignaturesPending: () =>
+    req('GET', '/signatures/pending'),
+  getSignaturesStatus: (docId) =>
+    req('GET', `/signatures/${docId}/status`),
+  signDocument: (docId, role) =>
+    req('POST', `/signatures/${docId}/sign`, { role }),
 
   // Suppliers
   getSuppliers: () => req('GET', '/suppliers'),

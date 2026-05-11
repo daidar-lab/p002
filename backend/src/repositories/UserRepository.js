@@ -55,6 +55,15 @@ class UserRepository {
     return { row: rows[0], rowCount };
   }
 
+  async getByRoles(roles) {
+    const { rows } = await pool.query(
+      `SELECT email FROM audit_quality.users 
+       WHERE role = ANY($1) AND active = true AND email IS NOT NULL`,
+      [roles]
+    );
+    return rows.map(r => r.email);
+  }
+
   async delete(id) {
     const { rowCount } = await pool.query(
       'DELETE FROM audit_quality.users WHERE id = $1',

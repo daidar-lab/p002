@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { verifyToken } from '../middlewares/auth.js';
 import AuditService from '../services/AuditService.js';
+import AuditRepository from '../repositories/AuditRepository.js';
 
 const router = Router();
 
@@ -16,6 +17,18 @@ router.post('/run', async (req, res) => {
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+/**
+ * Disparo simplificado via botão (Snapshot 30 dias)
+ */
+router.post('/generate', async (req, res) => {
+  try {
+    const result = await AuditService.generateAutoSnapshots(req.user.id);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

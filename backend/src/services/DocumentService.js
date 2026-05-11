@@ -127,13 +127,9 @@ class DocumentService {
         raqs_count: evaluation.history_count
       });
 
-      return {
-        escalated: true,
-        decision: evaluation.decision,
-        rule_applied: evaluation.rule_applied,
-        deterministic: true,
-        data: newRnc
-      };
+      // 3. Retorna o documento completo (com JOIN do fornecedor para o frontend)
+      const fullDoc = await DocumentRepository.getById(newRnc.id);
+      return { data: fullDoc };
 
     } catch (err) {
       await client.query('ROLLBACK');
@@ -183,11 +179,12 @@ class DocumentService {
       // 2. Registra Auditoria do Cálculo de Severidade (BR-07 / SD-SV-AUTO)
       await pool.query(
         `INSERT INTO audit_quality.audit_logs (document_id, action, detail, user_name)
-         VALUES ($1, 'Severidade Automática', $2, 'Motor de Regras')`,
+         VALUES ($1, 'Severidade Automática', $2, $3)`,
         [doc.id, `Classificado como ${severity}. Base: ${basis.join(', ')}`, 'sistema']
       );
 
-      return { data: doc };
+      const fullDoc = await DocumentRepository.getById(doc.id);
+      return { data: fullDoc };
     } catch (err) {
       return this._handleDbError(err);
     }
@@ -383,8 +380,8 @@ class DocumentService {
     // B. Busca CAPAs ativas
     const capas = await CapaRepository.findActiveByDocumentId(documentId);
     
-    // 1. Filtro de Execução: Todas devem estar CONCLUIDAS
-    const allFinished = capas.length > 0 && capas.every(c => c.status === 'CONCLUIDO');
+    // 1. Filtro de Execução: Todas devem estar CONCLUIDAS ou IMPLEMENTADAS
+    const allFinished = capas.length > 0 && capas.every(c => ['CONCLUIDO', 'IMPLEMENTADO'].includes(c.status));
     if (!allFinished) {
       return await this._persistEfficacyDecision(documentId, 'BLOCK_WORKFLOW', ['BR-EVE-01'], 'CAPAs não concluídas ou inexistentes.');
     }

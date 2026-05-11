@@ -40,7 +40,10 @@ router.put('/:id', async (req, res) => {
     req.body,
     req.user.name
   );
-  res.json(result.data ?? result);
+  if (result.error) {
+    return res.status(result.status || 400).json({ error: result.message });
+  }
+  res.json(result.data);
 });
 
 router.delete('/:id', async (req, res) => {
