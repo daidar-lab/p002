@@ -70,6 +70,33 @@ router.patch('/:id/status', async (req, res) => {
   res.json(result.data);
 });
 
+import DispositionService from '../services/DispositionService.js';
+
+router.post('/:id/disposition', async (req, res) => {
+  try {
+    const result = await DispositionService.setDisposition(
+      Number(req.params.id),
+      {
+        ...req.body,
+        userId: req.user.name,
+        role: req.user.role || 'QUALITY_ANALYST'
+      }
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.get('/:id/disposition', async (req, res) => {
+  try {
+    const data = await DispositionService.getDisposition(Number(req.params.id));
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/:id/timeline', async (req, res) => {
   const result = await DocumentService.getTimeline(Number(req.params.id));
   // Retorna apenas a data (o array de eventos) para o frontend

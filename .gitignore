@@ -1,0 +1,40 @@
+# Dependências
+node_modules/
+.pnp
+.pnp.js
+
+# Produção / Builds
+dist/
+build/
+.next/
+out/
+
+# Variáveis de Ambiente (CRÍTICO)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# IDE / Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Temporários / Scratch
+scratch/
+.temp/
+.cache/
+
+# Banco de Dados (Arquivos de Dados Locais se houver)
+*.sqlite
+*.db

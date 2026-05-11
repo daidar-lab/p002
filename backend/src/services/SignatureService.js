@@ -1,79 +1,115 @@
 import crypto from 'crypto';
 import SignatureRepository from '../repositories/SignatureRepository.js';
-import EfficacyRepository from '../repositories/EfficacyRepository.js';
 import DocumentRepository from '../repositories/DocumentRepository.js';
 
 class SignatureService {
-  /**
-   * Registro Formal de Assinatura (BR-SIGN-01 e BR-SIGN-IDENTITY)
-   */
-  async registerSignature(documentId, user, roleToSign) {
-    // 1. Validação de Identidade (BR-SIGN-IDENTITY)
-    if (user.role !== roleToSign) {
-      throw new Error(`Inconsistência: Usuário possui papel '${user.role}' mas tentou assinar como '${roleToSign}'.`);
-    }
+  REQUIRED_ROLES = ['QUALITY_ANALYST', 'QUALITY_COORDINATOR', 'CGI', 'LOGISTICS', 'PCP'];
 
-    // 2. Precondição Soberana (BR-SIGN-01): Deve existir decisão de encerramento definitiva
-    const lastDecision = await EfficacyRepository.getLastDecision(documentId);
-    if (!lastDecision || lastDecision.decision !== 'ENCERRAMENTO_DEFINITIVO') {
-      throw new Error('Bloqueio: Nenhuma decisão técnica de encerramento definitivo encontrada para este RNC.');
-    }
-
-    // 3. Verifica se o papel já assinou esta decisão específica
-    const alreadySigned = await SignatureRepository.hasRoleSignedDecision(documentId, roleToSign, lastDecision.id);
-    if (alreadySigned) {
-      throw new Error(`O papel '${roleToSign}' já formalizou concordância com esta decisão técnica.`);
-    }
-
-    // 4. Geração de Hash de Integridade (SHA-256)
-    const hashSource = `${documentId}-${user.id}-${roleToSign}-${lastDecision.id}-${new Date().toISOString()}`;
-    const signatureHash = crypto.createHash('sha256').update(hashSource).digest('hex');
-
-    // 5. Persistência
-    return await SignatureRepository.save({
-      document_id: documentId,
-      user_id: user.id,
-      role: roleToSign,
-      decision_uuid: lastDecision.id,
-      signature_hash: signatureHash
-    });
+  constructor() {
+    // HIR-04: SLA evaluation MUST be scheduled, never user-triggered
+    // Iniciando monitor de SLA a cada 1 minuto
+    setInterval(() => this.checkSLAEngine(), 60000);
   }
 
   /**
-   * Verifica se o painel de assinaturas paralelas está completo (BR-SIGN-04)
+   * Parallel Dispatch (STEP 2/3)
    */
-  async isSignOffComplete(documentId) {
+  async dispatchParallel(documentId) {
     const doc = await DocumentRepository.getById(documentId);
-    const lastDecision = await EfficacyRepository.getLastDecision(documentId);
+    if (!doc) throw new Error('Documento não encontrado');
+    if (doc.type !== 'RNC') return; // IR-07: Signature workflow mandatory for RNC only
 
-    if (!lastDecision || lastDecision.decision !== 'ENCERRAMENTO_DEFINITIVO') return false;
+    // VR-01/VR-02: SLA Determination
+    const slaHours = doc.severity === 'CRITICAL' ? 8 : 24;
+    const deadline = new Date();
+    deadline.setHours(deadline.getHours() + slaHours);
 
-    // Busca papéis configurados como obrigatórios
-    const requiredRoles = await SignatureRepository.getRequiredRoles(doc.type);
-    if (requiredRoles.length === 0) return true; // Sem assinaturas obrigatórias
-
-    // Busca assinaturas realizadas para a decisão atual
-    const currentSignatures = await SignatureRepository.getSignaturesByDecision(documentId, lastDecision.id);
-    const signedRoles = currentSignatures.map(s => s.role);
-
-    // Verifica se todos os obrigatórios assinaram
-    return requiredRoles.every(role => signedRoles.includes(role));
+    await SignatureRepository.dispatchParallel(documentId, this.REQUIRED_ROLES, deadline.toISOString());
+    console.log(`[BR-07] Despacho paralelo concluído para RNC ${documentId}. SLA: ${slaHours}h`);
   }
 
-  async getSignatureStatus(documentId) {
+  /**
+   * Signature Logic with Status Gate (HVR-07)
+   */
+  async sign(documentId, role, userId) {
     const doc = await DocumentRepository.getById(documentId);
-    const lastDecision = await EfficacyRepository.getLastDecision(documentId);
     
-    const requiredRoles = await SignatureRepository.getRequiredRoles(doc.type);
-    const signatures = lastDecision 
-      ? await SignatureRepository.getSignaturesByDecision(documentId, lastDecision.id) 
-      : [];
+    // HVR-07: Signature writes MUST fail if NC_STATUS ≠ AWAITING_SIGNATURES
+    if (doc.status !== 'AGUARDANDO_ASSINATURAS') {
+      throw new Error('HFC-07: Escrita de assinatura bloqueada. Status atual não permite assinaturas.');
+    }
 
+    const signatures = await SignatureRepository.getByDocumentId(documentId);
+    const sig = signatures.find(s => s.role === role);
+
+    if (!sig) throw new Error('Papel de assinatura não solicitado para este documento');
+    if (sig.status === 'SIGNED') throw new Error('HFC-03: Assinatura já realizada e imutável.');
+
+    // State Hashing
+    const stateHash = this.calculateStateHash(documentId, role, userId);
+
+    return await SignatureRepository.updateToSigned(sig.id, userId, stateHash);
+  }
+
+  /**
+   * Cryptographic State Hash (Output Contract)
+   */
+  calculateStateHash(documentId, role, userId) {
+    const source = `${documentId}-${role}-${userId}-${new Date().toISOString()}`;
+    return crypto.createHash('sha256').update(source).digest('hex');
+  }
+
+  /**
+   * Internal SLA Engine (HIR-04)
+   * Mark as ESCALATED if deadline exceeded
+   */
+  async checkSLAEngine() {
+    try {
+      const expired = await SignatureRepository.getExpiredSignatures();
+      for (const sig of expired) {
+        const now = new Date();
+        const deadline = new Date(sig.sla_deadline);
+        const duration = deadline.getTime() - new Date(sig.requested_at).getTime();
+        
+        // VR-04: Escalation L2 after 2x SLA
+        const level = (now.getTime() > (deadline.getTime() + duration)) ? 'EXECUTIVE' : 'MANAGERIAL';
+        
+        await SignatureRepository.updateEscalation(sig.id, level);
+        console.log(`[SLA ALERT] Assinatura ${sig.id} (Role: ${sig.role}) escalonada para ${level}`);
+      }
+    } catch (err) {
+      console.error('[SLA ENGINE ERROR]', err.message);
+    }
+  }
+
+  /**
+   * Atomic Revalidation for Closure (HVR-06)
+   */
+  async canProceedToDisposition(documentId) {
+    const signatures = await SignatureRepository.getByDocumentId(documentId);
+    if (signatures.length === 0) return false;
+    
+    // HFC-02: Block if any signature is not SIGNED
+    return signatures.every(s => s.status === 'SIGNED');
+  }
+
+  async getHardenedState(documentId) {
+    const doc = await DocumentRepository.getById(documentId);
+    const signatures = await SignatureRepository.getByDocumentId(documentId);
+    
+    // Constrói o Output Contract conforme a SPEC
     return {
-      can_sign: lastDecision?.decision === 'ENCERRAMENTO_DEFINITIVO',
-      required_roles: requiredRoles,
-      current_signatures: signatures,
-      is_complete: await this.isSignOffComplete(documentId)
+      ncId: documentId,
+      severity: doc.severity,
+      signatures: signatures.map(s => ({
+        role: s.role,
+        status: s.status,
+        requestedAt: s.requested_at,
+        slaDeadline: s.sla_deadline,
+        signedAt: s.signed_at,
+        escalationLevel: s.escalation_level
+      })),
+      closureAllowed: await this.canProceedToDisposition(documentId)
     };
   }
 }

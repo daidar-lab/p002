@@ -5,6 +5,7 @@ import EfficacyRepository from '../repositories/EfficacyRepository.js';
 import SignatureService from './SignatureService.js';
 import MailService from './MailService.js';
 import PortalService from './PortalService.js';
+import SeverityService from './SeverityService.js';
 import pool from '../config/db.js';
 
 class DocumentService {
@@ -81,14 +82,17 @@ class DocumentService {
       // A. Gera novo código para o RNC
       const newCode = await this._generateNextCode('RNC');
 
-      // B. Cria o RNC automático
+      // B. Cria o RNC automático (Escalonamento BR-05 sempre MEDIUM por padrão se interno)
+      const { severity, basis } = SeverityService.calculateSeverity({ type: 'RNC', occurrence_context: 'PROCESS' });
+
       const rncResult = await client.query(
         `INSERT INTO audit_quality.documents (
           code, type, status, supplier_id,
-          item_description, defect_category, created_at
-        ) VALUES ($1, 'RNC', 'ABERTO', $2, $3, $4, NOW())
+          item_description, defect_category, created_at,
+          severity, occurrence_context, evaluation_log
+        ) VALUES ($1, 'RNC', 'ABERTO', $2, $3, $4, NOW(), $5, 'PROCESS', $6)
         RETURNING *`,
-        [newCode, supplier_id, `[ESCALONAMENTO BR-05] ${item_description}`, defect_category]
+        [newCode, supplier_id, `[ESCALONAMENTO BR-05] ${item_description}`, defect_category, severity, JSON.stringify(basis)]
       );
 
       const newRnc = rncResult.rows[0];
@@ -154,17 +158,36 @@ class DocumentService {
       finalCode = await this._generateNextCode(type);
     }
 
+    // 1. Cálculo de Severidade Automática (SPEC SD-SV-AUTO)
+    const { severity, basis } = SeverityService.calculateSeverity(data);
+
     try {
       const result = await pool.query(
         `INSERT INTO audit_quality.documents (
           code, type, status, supplier_id,
-          item_description, defect_category, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+          item_description, defect_category, created_at,
+          severity, occurrence_context, audit_finding_type,
+          impact_regulatory, impact_customer, impact_production, evaluation_log
+        ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10, $11, $12, $13)
         RETURNING *`,
-        [finalCode, type, status, supplier_id || null, item_description, defect_category]
+        [
+          finalCode, type, status, supplier_id || null, item_description, defect_category,
+          severity, data.occurrence_context || 'PRODUCT', data.audit_finding_type || null,
+          data.impact_regulatory || false, data.impact_customer || false, data.impact_production || false,
+          JSON.stringify(basis)
+        ]
       );
 
-      return { data: result.rows[0] };
+      const doc = result.rows[0];
+
+      // 2. Registra Auditoria do Cálculo de Severidade (BR-07 / SD-SV-AUTO)
+      await pool.query(
+        `INSERT INTO audit_quality.audit_logs (document_id, action, detail, user_name)
+         VALUES ($1, 'Severidade Automática', $2, 'Motor de Regras')`,
+        [doc.id, `Classificado como ${severity}. Base: ${basis.join(', ')}`, 'sistema']
+      );
+
+      return { data: doc };
     } catch (err) {
       return this._handleDbError(err);
     }
@@ -211,13 +234,19 @@ class DocumentService {
           supplier_id      = COALESCE($4, supplier_id),
           item_description = COALESCE($5, item_description),
           defect_category  = COALESCE($6, defect_category),
-          updated_at       = NOW()
-        WHERE id = $7
+          updated_at       = NOW(),
+          -- Severidade Automática é imutável via update manual (IR-SV-04)
+          occurrence_context = COALESCE($7, occurrence_context),
+          impact_regulatory  = COALESCE($8, impact_regulatory),
+          impact_customer    = COALESCE($9, impact_customer),
+          impact_production  = COALESCE($10, impact_production)
+        WHERE id = $11
         RETURNING *`,
         [
           code, type, status,
           supplier_id || null,
           item_description, defect_category,
+          data.occurrence_context, data.impact_regulatory, data.impact_customer, data.impact_production,
           documentId
         ]
       );
@@ -469,18 +498,23 @@ class DocumentService {
           return { error: true, status: 403, message: 'Bloqueio: Eficácia não comprovada.', evaluation: effEval };
         }
         
-        // Se chegou aqui, a decisão é ENCERRAMENTO_DEFINITIVO
+        // Se chegou aqui, a decisão técnica é favorável ao encerramento
+        // Regra BR-07: Redirecionar para coleta de assinaturas
+        if (newStatus === 'CONCLUIDO') {
+          newStatus = 'AGUARDANDO_ASSINATURAS';
+        }
       }
 
-      // 3. Gate de Encerramento Administrativo (Assinaturas Paralelas)
-      if (newStatus === 'ENCERRADO' && docType === 'RNC') {
-        const isComplete = await SignatureService.isSignOffComplete(documentId);
-        if (!isComplete) {
+      // 3. Gate de Assinaturas (BR-07)
+      // Bloqueia avanço para Disposição se houver assinaturas pendentes
+      if (newStatus === 'AGUARDANDO_DISPOSICAO') {
+        const canAdvance = await SignatureService.canProceedToDisposition(documentId);
+        if (!canAdvance) {
           await client.query('ROLLBACK');
           return { 
             error: true, 
             status: 403, 
-            message: 'Bloqueio: Encerramento administrativo exige a coleta de todas as assinaturas obrigatórias.' 
+            message: 'HFC-02: Bloqueio. Todas as assinaturas eletrônicas devem estar SIGNED para avançar.' 
           };
         }
       }
@@ -504,6 +538,13 @@ class DocumentService {
       if (newStatus === 'ENVIADO_FORNECEDOR') {
         PortalService.notifySupplier(documentId).catch(err => {
           console.error('Falha na notificação assíncrona do fornecedor:', err.message);
+        });
+      }
+
+      // 6. Side Effect: Despacho de Assinaturas Paralelas (BR-07)
+      if (newStatus === 'AGUARDANDO_ASSINATURAS') {
+        SignatureService.dispatchParallel(documentId).catch(err => {
+          console.error('[BR-07 ERROR] Falha no despacho paralelo:', err.message);
         });
       }
 

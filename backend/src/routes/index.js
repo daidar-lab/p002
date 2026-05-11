@@ -9,6 +9,7 @@ import signatureRoutes from './signatures.routes.js';
 import reportRoutes from './report.routes.js';
 import auditRoutes from './audit.routes.js';
 import notificationRoutes from './notification.routes.js';
+import snapshotRoutes from './snapshots.routes.js';
 
 const router = Router();
 
@@ -21,5 +22,6 @@ router.use('/signatures', signatureRoutes);
 router.use('/reports', reportRoutes);
 router.use('/audits', auditRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/snapshots', snapshotRoutes);
 
 export default router;

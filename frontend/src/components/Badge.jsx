@@ -10,6 +10,8 @@ const STATUS_COLORS = {
   ABERTO:     'badge--aberto',
   EM_ANALISE: 'badge--analise',
   CONCLUIDO:  'badge--concluido',
+  AGUARDANDO_ASSINATURAS: 'badge--assinaturas',
+  AGUARDANDO_DISPOSICAO: 'badge--disposicao',
   CANCELADO:  'badge--cancelado',
 };
 
@@ -17,6 +19,8 @@ const STATUS_LABELS = {
   ABERTO:     'Aberto',
   EM_ANALISE: 'Em Análise',
   CONCLUIDO:  'Concluído',
+  AGUARDANDO_ASSINATURAS: 'Aguardando Assinaturas',
+  AGUARDANDO_DISPOSICAO: 'Aguardando Disposição',
   CANCELADO:  'Cancelado',
 };
 

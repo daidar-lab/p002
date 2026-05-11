@@ -2,46 +2,76 @@ import pool from '../config/db.js';
 
 class SignatureRepository {
   /**
-   * Busca papéis obrigatórios para o tipo de documento na configuração soberana
+   * Busca todas as assinaturas de um documento com dados de auditoria
    */
-  async getRequiredRoles(documentType) {
-    const query = 'SELECT role FROM audit_quality.signature_roles_required WHERE document_type = $1';
-    const result = await pool.query(query, [documentType]);
-    return result.rows.map(r => r.role);
-  }
-
-  /**
-   * Lista assinaturas realizadas para um documento e uma decisão técnica específica
-   */
-  async getSignaturesByDecision(documentId, decisionUuid) {
+  async getByDocumentId(documentId) {
     const query = `
       SELECT s.*, u.name as user_name 
       FROM audit_quality.signatures s
-      JOIN audit_quality.users u ON u.id = s.user_id
-      WHERE s.document_id = $1 AND s.decision_uuid = $2
+      LEFT JOIN audit_quality.users u ON u.id::text = s.user_id
+      WHERE s.document_id = $1
+      ORDER BY s.requested_at ASC
     `;
-    const result = await pool.query(query, [documentId, decisionUuid]);
+    const result = await pool.query(query, [documentId]);
     return result.rows;
   }
 
-  async save(data) {
-    const { document_id, user_id, role, decision_uuid, signature_hash } = data;
+  /**
+   * Despacho Paralelo (Atomic Transaction)
+   */
+  async dispatchParallel(documentId, roles, slaDeadline) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const requestedAt = new Date().toISOString(); // SYSTEM_UTC_ONLY por padrão do Node se configurado
+
+      for (const role of roles) {
+        const query = `
+          INSERT INTO audit_quality.signatures (document_id, role, status, requested_at, sla_deadline)
+          VALUES ($1, $2, 'PENDING', $3, $4)
+          ON CONFLICT (document_id, role) DO NOTHING
+        `;
+        await client.query(query, [documentId, role, requestedAt, slaDeadline]);
+      }
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async updateToSigned(signatureId, userId, stateHash) {
     const query = `
-      INSERT INTO audit_quality.signatures (document_id, user_id, role, decision_uuid, signature_hash)
-      VALUES ($1, $2, $3, $4, $5)
+      UPDATE audit_quality.signatures 
+      SET status = 'SIGNED', user_id = $1, signed_at = NOW(), state_hash = $2
+      WHERE id = $3 AND status != 'SIGNED'
       RETURNING *
     `;
-    const result = await pool.query(query, [document_id, user_id, role, decision_uuid, signature_hash]);
+    const result = await pool.query(query, [userId, stateHash, signatureId]);
     return result.rows[0];
   }
 
-  async hasRoleSignedDecision(documentId, role, decisionUuid) {
+  async updateEscalation(signatureId, level) {
     const query = `
-      SELECT id FROM audit_quality.signatures 
-      WHERE document_id = $1 AND role = $2 AND decision_uuid = $3
+      UPDATE audit_quality.signatures 
+      SET status = 'ESCALATED', escalation_level = $1
+      WHERE id = $2 AND status = 'PENDING'
     `;
-    const result = await pool.query(query, [documentId, role, decisionUuid]);
-    return result.rowCount > 0;
+    await pool.query(query, [level, signatureId]);
+  }
+
+  async getExpiredSignatures() {
+    const query = `
+      SELECT s.*, d.severity
+      FROM audit_quality.signatures s
+      JOIN audit_quality.documents d ON d.id = s.document_id
+      WHERE s.status = 'PENDING' AND s.sla_deadline < NOW()
+    `;
+    const result = await pool.query(query);
+    return result.rows;
   }
 }
 
