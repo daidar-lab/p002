@@ -13,9 +13,12 @@ import ReportRepository from '../repositories/ReportRepository.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+import S3Service from './S3Service.js';
+
 class ReportService {
   /**
    * Consolida D1-D7 e gera Snapshot imutável (BR-PDF-01/02)
+   * Agora integrado ao S3 (BR-S3-01/02/03)
    */
   async generate8DReport(documentId, userId) {
     // 1. Validações Normativas
@@ -35,7 +38,6 @@ class ReportService {
         rules_applied: ['MIGRACAO_SISTEMA'],
         evidence_summary: 'Encerramento retroativo (Legado) para geração de relatório 8D.'
       });
-      // O saveDecision retorna { id, created_at }
       lastDecision.decision = 'ENCERRAMENTO_DEFINITIVO';
     }
 
@@ -53,11 +55,12 @@ class ReportService {
     const capas = await CapaRepository.findActiveByDocumentId(documentId);
     const sigStatus = await SignatureService.getHardenedState(documentId);
 
-    // 3. Preparação do PDF
-    const fileName = `8D_${doc.code}_${Date.now()}.pdf`;
-    const filePath = path.join(__dirname, '../../uploads/reports', fileName);
+    // 3. Preparação do PDF Local (Buffer Temporário)
+    const tempFileName = `8D_${doc.code}_${Date.now()}.pdf`;
+    const tempPath = path.join(__dirname, '../../uploads/reports', tempFileName);
     const pdfDoc = new PDFDocument({ margin: 50, size: 'A4' });
-    const writeStream = fs.createWriteStream(filePath);
+    const writeStream = fs.createWriteStream(tempPath);
+    
     pdfDoc.pipe(writeStream);
 
     // --- Estilos e Cabeçalho ---
@@ -118,23 +121,61 @@ class ReportService {
 
     pdfDoc.end();
 
-    // 4. Finalização e Hash
+    // 4. Fluxo AWS S3 e Limpeza Local (Hardened Flow)
     return new Promise((resolve, reject) => {
       writeStream.on('finish', async () => {
-        const fileBuffer = fs.readFileSync(filePath);
-        const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+        const s3Key = S3Service.generateKey(documentId);
+        
+        try {
+          // Upload via ReadStream (BR-S3-01/03)
+          await S3Service.uploadFileStream(tempPath, s3Key);
 
-        const record = await ReportRepository.save({
-          document_id: documentId,
-          decision_uuid: lastDecision.id,
-          file_name: fileName,
-          file_hash: hash,
-          created_by: userId
-        });
+          const fileBuffer = fs.readFileSync(tempPath);
+          const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
-        resolve(record);
+          // Persistência com Chave Imutável (Idempotency Gate)
+          try {
+            const record = await ReportRepository.save({
+              document_id: documentId,
+              decision_uuid: lastDecision.id,
+              file_name: s3Key, // Agora armazena apenas a KEY (Hardened)
+              file_hash: hash,
+              created_by: userId
+            });
+
+            // Geramos uma URL temporária para a resposta imediata
+            const temporaryUrl = await S3Service.getPresignedUrl(s3Key);
+
+            resolve({
+              operation: "S3_UPLOAD",
+              document_id: documentId,
+              status: "SUCCESS",
+              permanent_uri: temporaryUrl, // URL protegida (expira em 1h)
+              object_key: s3Key,
+              deterministic: true,
+              db_record: record
+            });
+          } catch (dbErr) {
+            // COMPENSAÇÃO (BR-AUD-01): Se o banco falhar, removemos do S3
+            await S3Service.rollbackObject(s3Key);
+            throw dbErr;
+          }
+
+        } catch (err) {
+          console.error('[HARDENED_FLOW_CRITICAL_FAILURE]', err.message);
+          reject(err);
+        } finally {
+          // BR-S3-01: Zero-Footprint Local
+          if (fs.existsSync(tempPath)) {
+            fs.unlinkSync(tempPath);
+          }
+        }
       });
-      writeStream.on('error', reject);
+
+      writeStream.on('error', (err) => {
+        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+        reject(err);
+      });
     });
   }
 
@@ -150,7 +191,8 @@ class ReportService {
   }
 
   getReportPath(fileName) {
-    return path.join(__dirname, '../../uploads/reports', fileName);
+    // Nota: Como o fileName agora é uma URL S3, este método retorna a própria URI.
+    return fileName;
   }
 }
 

@@ -10,6 +10,7 @@ import reportRoutes from './report.routes.js';
 import auditRoutes from './audit.routes.js';
 import notificationRoutes from './notification.routes.js';
 import snapshotRoutes from './snapshots.routes.js';
+import adminRoutes from './admin.routes.js';
 
 const router = Router();
 
@@ -23,5 +24,6 @@ router.use('/reports', reportRoutes);
 router.use('/audits', auditRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/snapshots', snapshotRoutes);
+router.use('/admin', adminRoutes);
 
 export default router;
