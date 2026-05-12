@@ -71,13 +71,34 @@ class RheRepository {
   }
 
   async list(filters = {}) {
+    const { phase, supplier, status, limit = 10, offset = 0 } = filters;
+    const values = [];
     let query = `
-      SELECT r.*, s.name as supplier_name 
+      SELECT r.*, s.name as supplier_name, COUNT(*) OVER() as total_count
       FROM audit_quality.rhes r
       LEFT JOIN audit_quality.suppliers s ON s.id = r.supplier_id
-      ORDER BY r.created_at DESC
+      WHERE 1=1
     `;
-    const result = await pool.query(query);
+
+    if (phase) {
+      values.push(phase);
+      query += ` AND r.phase = $${values.length}`;
+    }
+
+    if (supplier) {
+      values.push(`%${supplier}%`);
+      query += ` AND s.name ILIKE $${values.length}`;
+    }
+
+    if (status) {
+      values.push(status);
+      query += ` AND r.status = $${values.length}`;
+    }
+
+    query += ` ORDER BY r.created_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
+    values.push(limit, offset);
+
+    const result = await pool.query(query, values);
     return result.rows;
   }
 }

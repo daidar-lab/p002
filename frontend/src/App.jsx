@@ -39,6 +39,7 @@ const NAV = [
 
 function Sidebar() {
   const { user, logout } = useAuth();
+  const [rheOpen, setRheOpen] = React.useState(false);
 
   return (
     <aside className="sidebar">
@@ -48,17 +49,50 @@ function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        {NAV.map(({ to, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `nav-item ${isActive ? 'nav-item--active' : ''}`
-            }
+        {NAV.map(({ to, label }) => {
+          // Pula RHE aqui para tratar separado
+          if (to === '/rhes') return null;
+
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `nav-item ${isActive ? 'nav-item--active' : ''}`
+              }
+            >
+              <span className="nav-item__label">{label}</span>
+            </NavLink>
+          );
+        })}
+
+        {/* 📂 Menu Collapsible RHE */}
+        <div className="nav-group">
+          <button 
+            className={`nav-item nav-item--collapsible ${rheOpen ? 'nav-item--open' : ''}`}
+            onClick={() => setRheOpen(!rheOpen)}
           >
-            <span className="nav-item__label">{label}</span>
-          </NavLink>
-        ))}
+            <span className="nav-item__label">Homologação (RHE)</span>
+            <span className="nav-group-arrow">{rheOpen ? '▲' : '▼'}</span>
+          </button>
+          
+          {rheOpen && (
+            <div className="nav-sub">
+              <NavLink 
+                to="/rhes?phase=INITIAL" 
+                className={({ isActive }) => `nav-sub-item ${isActive ? 'nav-sub-item--active' : ''}`}
+              >
+                Fase Inicial
+              </NavLink>
+              <NavLink 
+                to="/rhes?phase=FINAL" 
+                className={({ isActive }) => `nav-sub-item ${isActive ? 'nav-sub-item--active' : ''}`}
+              >
+                Fase Final
+              </NavLink>
+            </div>
+          )}
+        </div>
 
         {/* ✅ Somente admin vê Usuários e Configurações */}
         {user?.role === 'admin' && (

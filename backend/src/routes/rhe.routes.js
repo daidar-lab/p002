@@ -11,7 +11,7 @@ router.use(verifyToken);
  */
 router.get('/', async (req, res) => {
   try {
-    const list = await RheService.listRhes();
+    const list = await RheService.listRhes(req.query);
     res.json(list);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -60,7 +60,7 @@ router.post('/:id/checklist', async (req, res) => {
  */
 router.post('/:id/gate', async (req, res) => {
   try {
-    const rhe = await RheService.executeGate(req.params.id, req.user.id);
+    const rhe = await RheService.executeGate(req.params.id, req.user.id, req.body.decision);
     res.json(rhe);
   } catch (err) {
     res.status(400).json({ error: err.message });

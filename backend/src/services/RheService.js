@@ -37,7 +37,7 @@ class RheService {
   /**
    * BR-05: Validação de Checklist e Execução de Gate
    */
-  async executeGate(rheId, userId) {
+  async executeGate(rheId, userId, decision) {
     const rhe = await RheRepository.getById(rheId);
     if (!rhe) throw new Error('RHE não encontrado.');
 
@@ -48,7 +48,7 @@ class RheService {
     const checklist = await RheRepository.getChecklist(rheId);
     const requiredItems = CHECKLIST_TEMPLATES[rhe.phase];
 
-    // Validação de Completude (Rule 4.2)
+    // Validação de Completude (Rule 4.2) continua obrigatória
     const isComplete = requiredItems.every(reqId => 
       checklist.some(item => item.item_id === reqId && item.approved !== null)
     );
@@ -57,14 +57,12 @@ class RheService {
       throw new Error('Fail Condition: Checklist incompleto bloqueia o gate.');
     }
 
-    // Decisão Determinística (Rule 5)
-    const allApproved = checklist.every(item => item.approved === true);
+    // Decisão baseada na escolha do usuário (Manual Override)
     let nextStatus = '';
-
-    if (rhe.phase === 'INITIAL') {
-      nextStatus = allApproved ? 'INITIAL_APPROVED' : 'REPROVED';
+    if (decision === 'APPROVE') {
+      nextStatus = rhe.phase === 'INITIAL' ? 'INITIAL_APPROVED' : 'FINAL_APPROVED';
     } else {
-      nextStatus = allApproved ? 'FINAL_APPROVED' : 'REPROVED';
+      nextStatus = 'REPROVED';
     }
 
     return await RheRepository.updateStatus(rheId, nextStatus, userId);
@@ -89,8 +87,8 @@ class RheService {
     return { ...rhe, checklist };
   }
 
-  async listRhes() {
-    return await RheRepository.list();
+  async listRhes(filters = {}) {
+    return await RheRepository.list(filters);
   }
 }
 
