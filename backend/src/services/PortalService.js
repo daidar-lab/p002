@@ -96,12 +96,19 @@ class PortalService {
       await client.query('BEGIN');
 
       // 1. Registra a Causa Raiz (Identificada pelo Fornecedor)
-      // data: JSONB obrigatório conforme SPEC
+      const acrType = evidenceData.acr_type || '5_WHYS';
+      const acrData = { 
+        ...evidenceData.acr_data, 
+        identified_by: 'fornecedor', 
+        source: 'portal',
+        has_root_cause: !!evidenceData.root_cause
+      };
+
       const rcRes = await client.query(
         `INSERT INTO audit_quality.root_cause_analyses (document_id, type, root_cause, data)
-         VALUES ($1, '5_WHYS', $2, $3)
+         VALUES ($1, $2, $3, $4)
          RETURNING id`,
-        [linkRecord.document_id, evidenceData.root_cause, JSON.stringify({ identified_by: 'fornecedor', source: 'portal' })]
+        [linkRecord.document_id, acrType, evidenceData.root_cause, JSON.stringify(acrData)]
       );
 
       const acrId = rcRes.rows[0].id;

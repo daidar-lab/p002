@@ -100,6 +100,16 @@ router.get('/:id/disposition', async (req, res) => {
   }
 });
 
+import RootCauseRepository from '../repositories/RootCauseRepository.js';
+router.get('/:id/acr', async (req, res) => {
+  try {
+    const data = await RootCauseRepository.findByDocumentId(Number(req.params.id));
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/:id/timeline', async (req, res) => {
   const result = await DocumentService.getTimeline(Number(req.params.id));
   // Retorna apenas a data (o array de eventos) para o frontend

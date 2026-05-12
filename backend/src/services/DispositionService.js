@@ -104,6 +104,15 @@ class DispositionService {
       // Mapeia aprovações para o formato STRICT
       const approvals = additionalApprovals.map(a => ({ role: a.role, approved: true }));
 
+      // ✅ ADICIONA A ROLE DO PRÓPRIO USUÁRIO COMO UMA APROVAÇÃO VÁLIDA (HFC-08)
+      if (role) {
+        approvals.push({ role: role, approved: true });
+        // Se for admin, também conta como coordenador para fins de bypass (HFC-08-ADMIN)
+        if (role === 'admin') {
+          approvals.push({ role: 'QUALITY_COORDINATOR', approved: true });
+        }
+      }
+
       const engineInput = {
         ncId: documentId,
         ncType: doc.type,

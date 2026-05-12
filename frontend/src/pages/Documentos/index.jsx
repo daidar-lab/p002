@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../utils/auth.jsx';
 import { useDocumentos } from '../../hooks/useData.js';
 import { useFornecedores } from '../../hooks/useData.js';
 import Drawer from '../../components/Drawer.jsx';
@@ -16,6 +17,7 @@ const EMPTY_FORM = {
 
 
 export default function Documentos() {
+  const { user } = useAuth();
   const { documents, loading, error, addDocument, updateDocument, deleteDocument } = useDocumentos();
   const { suppliers } = useFornecedores();
 
@@ -25,6 +27,7 @@ export default function Documentos() {
   const [confirmId, setConfirmId]   = useState(null);
   const [saving, setSaving]         = useState(false);
   const [signatures, setSignatures] = useState(null);
+  const [acrData, setAcrData]       = useState(null);
 
   const [filterType, setFilterType]     = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -43,11 +46,22 @@ export default function Documentos() {
       audit_finding_type: doc.audit_finding_type || 'MINOR'
     });
     setDrawerOpen(true);
+    fetchAcr(doc.id);
     if (doc.status === 'AGUARDANDO_ASSINATURAS') {
       fetchSignatures(doc.id);
     } else {
       setSignatures(null);
     }
+  };
+
+  const fetchAcr = async (id) => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/documents/${id}/acr`, {
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}` }
+      });
+      if (res.ok) setAcrData(await res.json());
+      else setAcrData(null);
+    } catch (err) { setAcrData(null); }
   };
 
   const fetchSignatures = async (id) => {
@@ -103,6 +117,9 @@ export default function Documentos() {
 
         if (!res.ok) {
           const errData = await res.json();
+          if (errData.error === 'MISSING_APPROVAL') {
+            throw new Error('Ação Bloqueada: Esta disposição exige aprovação de um perfil superior (Coordenação ou Comex).');
+          }
           throw new Error(errData.error || 'Erro ao registrar disposição');
         }
         toast('Disposição registrada e documento concluído');
@@ -231,7 +248,9 @@ export default function Documentos() {
                               }
                               const report = await res.json();
                               const token = sessionStorage.getItem('aq_token');
-                            window.open(`${import.meta.env.VITE_API_URL}/reports/download/${report.id}?token=${token}`, '_blank');
+                              // ✅ CORREÇÃO: O ID do relatório está dentro de db_record
+                              const reportId = report.db_record?.id || report.id;
+                              window.open(`${import.meta.env.VITE_API_URL}/reports/download/${reportId}?token=${token}`, '_blank');
                               toast('Relatório 8D gerado com sucesso');
                             } catch (err) {
                               toast(err.message, 'error');
@@ -267,8 +286,8 @@ export default function Documentos() {
             <label className="form-label">Status
               <select className="form-input" value={form.status} onChange={set('status')}>
                 <option value="ABERTO">1. Aberto (Triagem)</option>
-                <option value="EM_ANALISE">2. Em Análise (Tratamento)</option>
-                <option value="AGUARDANDO_ASSINATURAS">3. Aguardando Assinaturas</option>
+                {form.type !== 'RAQ' && <option value="EM_ANALISE">2. Em Análise (Tratamento)</option>}
+                {form.type !== 'RAQ' && <option value="AGUARDANDO_ASSINATURAS">3. Aguardando Assinaturas</option>}
                 <option value="ENVIADO_FORNECEDOR">4. Enviado ao Fornecedor</option>
                 <option value="AGUARDANDO_DISPOSICAO">5. Aguardando Disposição</option>
                 <option value="CONCLUIDO">6. Concluído</option>
@@ -341,7 +360,39 @@ export default function Documentos() {
               value={form.item_description} onChange={set('item_description')} required />
           </label>
 
-          {editing && form.status === 'AGUARDANDO_ASSINATURAS' && signatures && (
+          {editing && acrData && (
+            <div className="acr-preview-panel" style={{ marginTop: '1.5rem', padding: '1rem', background: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd' }}>
+              <p style={{ fontSize: '11px', fontWeight: '700', color: '#0369a1', marginBottom: '1rem', textTransform: 'uppercase' }}>
+                Investigação Técnica ({acrData.type === '5_WHYS' ? '5 Porquês' : 'Ishikawa'})
+              </p>
+              
+              {acrData.type === '5_WHYS' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {acrData.data?.levels?.map((why, i) => why && (
+                    <div key={i} style={{ fontSize: '12px' }}>
+                      <span style={{ fontWeight: '700', color: '#0ea5e9' }}>#{i+1}:</span> {why}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  {Object.entries(acrData.data?.categories || {}).map(([key, val]) => val && (
+                    <div key={key} style={{ fontSize: '11px' }}>
+                      <div style={{ fontWeight: '700', color: '#0ea5e9', textTransform: 'capitalize' }}>{key.replace('_', ' ')}</div>
+                      <div style={{ color: '#334155' }}>{val}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px dashed #bae6fd' }}>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#0369a1' }}>CAUSA RAIZ IDENTIFICADA:</span>
+                <p style={{ fontSize: '13px', fontWeight: '500', color: '#1e293b', margin: '4px 0 0 0' }}>{acrData.root_cause}</p>
+              </div>
+            </div>
+          )}
+
+          {editing && form.type !== 'RAQ' && form.status === 'AGUARDANDO_ASSINATURAS' && signatures && (
             <div className="signatures-panel" style={{ marginTop: '1.5rem', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
               <div style={{ background: '#f8fafc', padding: '10px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>ASSINATURAS EM PARALELO (BR-07)</span>

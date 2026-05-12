@@ -170,3 +170,31 @@ textarea {
 
 .portal-error h1 { color: #dc2626; }
 .portal-success h1 { color: #16a34a; }
+
+/* Novos estilos para ACR Estruturada */
+.form-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.acr-5whys .form-group, .acr-ishikawa .form-group {
+  margin-bottom: 12px;
+}
+
+.acr-5whys label, .acr-ishikawa label {
+  font-size: 0.8rem;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}

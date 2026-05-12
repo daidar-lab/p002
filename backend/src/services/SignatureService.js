@@ -107,7 +107,8 @@ class SignatureService {
    */
   async canProceedToDisposition(documentId) {
     const signatures = await SignatureRepository.getByDocumentId(documentId);
-    if (signatures.length === 0) return false;
+    // HVR-07: Se não houver assinaturas solicitadas (ex: RAQ), permite avançar
+    if (signatures.length === 0) return true;
     
     // HFC-02: Block if any signature is not SIGNED
     return signatures.every(s => s.status === 'SIGNED');

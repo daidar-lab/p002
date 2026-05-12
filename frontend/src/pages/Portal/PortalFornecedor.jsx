@@ -11,6 +11,11 @@ const PortalFornecedor = () => {
   const [success, setSuccess] = useState(false);
 
   // Estados do formulário soberano
+  const [acrType, setAcrType] = useState('5_WHYS');
+  const [fiveWhys, setFiveWhys] = useState(['', '', '', '', '']);
+  const [ishikawa, setIshikawa] = useState({
+    metodo: '', maquina: '', material: '', mao_de_obra: '', medida: '', ambiente: ''
+  });
   const [rootCause, setRootCause] = useState('');
   const [capaType, setCapaType] = useState('CORRETIVA');
   const [capaDescription, setCapaDescription] = useState('');
@@ -42,6 +47,8 @@ const PortalFornecedor = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           root_cause: rootCause,
+          acr_type: acrType,
+          acr_data: acrType === '5_WHYS' ? { levels: fiveWhys } : { categories: ishikawa },
           capa_type: capaType,
           capa_description: capaDescription,
           evidence_description: evidenceDescription,
@@ -90,15 +97,81 @@ const PortalFornecedor = () => {
 
           <h3>1. Análise de Causa Raiz (ACR)</h3>
           <div className="card highlight">
-            <label className="form-label">Descreva o motivo real da falha (Causa Raiz):</label>
-            <textarea 
-              value={rootCause}
-              onChange={(e) => setRootCause(e.target.value)}
-              placeholder="Ex: Falha no sensor de temperatura durante o lote X..."
-              required
-              rows={4}
-              style={{ width: '100%', marginTop: '8px' }}
-            />
+            <label className="form-label">Selecione o Modelo de Análise:</label>
+            <select 
+              className="form-input" 
+              value={acrType} 
+              onChange={(e) => setAcrType(e.target.value)}
+              style={{ marginBottom: '1.5rem' }}
+            >
+              <option value="5_WHYS">Modelo 5 Porquês (Análise de Causa)</option>
+              <option value="ISHIKAWA">Diagrama de Ishikawa (6Ms)</option>
+            </select>
+
+            {acrType === '5_WHYS' ? (
+              <div className="acr-5whys">
+                <p style={{ fontSize: '12px', color: 'var(--text-hint)', marginBottom: '1rem' }}>
+                  Questione sucessivamente o motivo de cada falha até chegar na causa raiz.
+                </p>
+                {[1, 2, 3, 4, 5].map((num, i) => (
+                  <div key={num} className="form-group">
+                    <label>Por que #{num}:</label>
+                    <input 
+                      type="text"
+                      className="form-input"
+                      placeholder={`Motivo da ocorrência #${num}`}
+                      value={fiveWhys[i]}
+                      onChange={(e) => {
+                        const newWhys = [...fiveWhys];
+                        newWhys[i] = e.target.value;
+                        setFiveWhys(newWhys);
+                      }}
+                      required={num === 1}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="acr-ishikawa">
+                <p style={{ fontSize: '12px', color: 'var(--text-hint)', marginBottom: '1rem' }}>
+                  Analise as possíveis causas divididas em categorias técnicas (6Ms).
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  {[
+                    { key: 'metodo',      label: 'Método',      placeholder: 'Técnicas e formas de execução' },
+                    { key: 'maquina',     label: 'Máquina',     placeholder: 'Equipamentos e tecnologia' },
+                    { key: 'material',    label: 'Material',    placeholder: 'Insumos e matéria-prima' },
+                    { key: 'mao_de_obra', label: 'Mão de Obra', placeholder: 'Pessoas e competências' },
+                    { key: 'medida',      label: 'Medida',      placeholder: 'Dados e mensuração' },
+                    { key: 'ambiente',    label: 'Meio Ambiente', placeholder: 'Condições externas' }
+                  ].map(m => (
+                    <div key={m.key} className="form-group">
+                      <label>{m.label}:</label>
+                      <input 
+                        type="text"
+                        className="form-input"
+                        placeholder={m.placeholder}
+                        value={ishikawa[m.key]}
+                        onChange={(e) => setIshikawa({ ...ishikawa, [m.key]: e.target.value })}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="form-group" style={{ marginTop: '1.5rem' }}>
+              <label className="form-label" style={{ fontWeight: '700' }}>Causa Raiz Final Identificada:</label>
+              <textarea 
+                value={rootCause}
+                onChange={(e) => setRootCause(e.target.value)}
+                placeholder="Resuma a causa fundamental encontrada após a análise acima..."
+                required
+                rows={3}
+                className="form-input"
+                style={{ width: '100%', marginTop: '8px' }}
+              />
+            </div>
           </div>
         </section>
 
@@ -117,12 +190,13 @@ const PortalFornecedor = () => {
 
             <div className="form-group">
               <label>Descrição da Ação Executada:</label>
-              <input 
-                type="text"
+              <textarea 
+                className="form-input"
                 value={capaDescription}
                 onChange={(e) => setCapaDescription(e.target.value)}
-                placeholder="Ex: Substituição do componente e recalibração..."
+                placeholder="Ex: Substituição do componente, recalibração do sensor e treinamento da equipe..."
                 required
+                rows={3}
               />
             </div>
 

@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import UserRepository from '../repositories/UserRepository.js';
 
 const SALT       = 10;
-const VALID_ROLES = ['admin', 'gestor'];
+const VALID_ROLES = ['admin', 'gestor', 'QUALITY_ANALYST', 'QUALITY_COORDINATOR'];
 
 function signToken(user) {
   const secret  = process.env.JWT_SECRET;
