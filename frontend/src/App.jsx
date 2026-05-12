@@ -21,6 +21,9 @@ import Notificacoes from './pages/Configuracoes/Notificacoes.jsx';
 import Assinaturas  from './pages/Assinaturas/index.jsx';
 import AuditoriaView from './pages/Auditoria/index.jsx';
 import PortalFornecedor from './pages/Portal/PortalFornecedor.jsx';
+import RHEList from './pages/RHE/index.jsx';
+import RHEDetail from './pages/RHE/Detail.jsx';
+import RHECreate from './pages/RHE/Create.jsx';
 
 import './index.css';
 
@@ -29,6 +32,7 @@ const NAV = [
   { to: '/documentos',   label: 'Documentos' },
   { to: '/assinaturas',  label: 'Assinar RNC' },
   { to: '/auditoria',    label: 'Centro de Auditoria' },
+  { to: '/rhes',         label: 'Homologação (RHE)' },
   { to: '/fornecedores', label: 'Fornecedores' },
   { to: '/auditorias',   label: 'Plano de Auditorias' },
 ];
@@ -115,6 +119,9 @@ function AppShell() {
           <Route path="/auditoria"    element={<AuditoriaView />} />
           <Route path="/fornecedores" element={<Fornecedores />} />
           <Route path="/auditorias"   element={<Auditorias />} />
+          <Route path="/rhes"         element={<RHEList />} />
+          <Route path="/rhes/new"     element={<RHECreate />} />
+          <Route path="/rhes/:id"     element={<RHEDetail />} />
 
           {/* ✅ Proteção por ROLE */}
           <Route

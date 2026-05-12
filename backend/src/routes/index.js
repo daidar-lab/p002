@@ -11,6 +11,7 @@ import auditRoutes from './audit.routes.js';
 import notificationRoutes from './notification.routes.js';
 import snapshotRoutes from './snapshots.routes.js';
 import adminRoutes from './admin.routes.js';
+import rheRoutes from './rhe.routes.js';
 
 const router = Router();
 
@@ -25,5 +26,6 @@ router.use('/audits', auditRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/snapshots', snapshotRoutes);
 router.use('/admin', adminRoutes);
+router.use('/rhes', rheRoutes);
 
 export default router;
