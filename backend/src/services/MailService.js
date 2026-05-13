@@ -153,7 +153,32 @@ class MailService {
       subject:     `🖊️ ASSINATURA PENDENTE: ${code}`,
       text:        `Atenção Gestor,\n\nO documento ${code} está pronto para revisão técnica e requer sua assinatura digital.\n\nEste documento segue o fluxo de conformidade da Cidade Imperial com SLA monitorado. Por favor, acesse o sistema para revisar e assinar.\n\nAtenciosamente,\nSistema de Gestão de Não Conformidades`,
       document_id,
-      triggered_by: 'sistema'
+    });
+  }
+
+  /**
+   * Notificações de SLA (BR-IN15-01)
+   */
+  async sendSLANotification({ type, documentCode, supplierEmail, managerEmail, contactName, businessDays }) {
+    let subject = '';
+    let text = '';
+    let recipients = [supplierEmail];
+
+    if (type === 'SLA_BREACH_DAILY') {
+      subject = `🚨 ATRASO CRÍTICO (SLA): Resposta 8D Pendente — ${documentCode}`;
+      text = `Prezado ${contactName || 'Fornecedor'},\n\nO prazo de 10 dias úteis para a resposta do documento ${documentCode} foi ULTRAPASSADO (${businessDays} dias úteis).\n\nEste atraso impacta a meta-governança da Cidade Imperial. Solicitamos o preenchimento imediato das informações no portal.\n\nAtenciosamente,\nGestão de Qualidade`;
+      
+      if (managerEmail) recipients.push(managerEmail);
+    } else {
+      subject = `Lembrete: Prazo de Resposta 8D — ${documentCode}`;
+      text = `Olá ${contactName || 'Fornecedor'},\n\nEste é um lembrete periódico sobre a necessidade de preenchimento do plano de ação (8D) para o documento ${documentCode}.\n\nLembramos que o prazo total é de 10 dias úteis.\n\nAtenciosamente,\nEquipe de Qualidade`;
+    }
+
+    return this.send({
+      to:           recipients.join(','),
+      subject,
+      text,
+      triggered_by: 'sistema_cron'
     });
   }
 }

@@ -517,9 +517,14 @@ class DocumentService {
       }
 
       // 4. Atualiza o documento
+      const isSendingToSupplier = newStatus === 'ENVIADO_FORNECEDOR';
       await client.query(
-        'UPDATE audit_quality.documents SET status = $1, updated_at = NOW() WHERE id = $2',
-        [newStatus, documentId]
+        `UPDATE audit_quality.documents SET 
+          status = $1, 
+          updated_at = NOW(),
+          sent_to_supplier_at = CASE WHEN $2 = true THEN NOW() ELSE sent_to_supplier_at END
+        WHERE id = $3`,
+        [newStatus, isSendingToSupplier, documentId]
       );
 
       // 4. Grava no histórico

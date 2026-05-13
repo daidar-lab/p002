@@ -16,6 +16,22 @@ const EMPTY_FORM = {
 };
 
 
+const getSLAStatus = (sentDate) => {
+  if (!sentDate) return 'EM PRAZO';
+  const start = new Date(sentDate);
+  const now = new Date();
+  
+  let count = 0;
+  let cur = new Date(start);
+  while (cur < now) {
+    cur.setDate(cur.getDate() + 1);
+    const day = cur.getDay();
+    if (day !== 0 && day !== 6) count++;
+  }
+  
+  return count >= 10 ? 'ATRASADO' : 'EM PRAZO';
+};
+
 export default function Documentos() {
   const { user } = useAuth();
   const { documents, loading, error, addDocument, updateDocument, deleteDocument } = useDocumentos();
@@ -30,6 +46,7 @@ export default function Documentos() {
   const [acrData, setAcrData]       = useState(null);
   const [eightDData, setEightDData] = useState(null);
   const [eightDOpen, setEightDOpen] = useState(false);
+  const [loading8D, setLoading8D] = useState(false);
 
   const [filterType, setFilterType]     = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -76,6 +93,7 @@ export default function Documentos() {
   };
 
   const open8D = async (id) => {
+    setLoading8D(true);
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/reports/data/${id}`, {
         headers: { 'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}` }
@@ -84,6 +102,7 @@ export default function Documentos() {
       setEightDData(await res.json());
       setEightDOpen(true);
     } catch (err) { toast(err.message, 'error'); }
+    finally { setLoading8D(false); }
   };
 
   const handleSign = async (role) => {
@@ -243,13 +262,23 @@ export default function Documentos() {
                         {d.severity}
                       </span>
                     ) : <span className="text-sub">—</span>}
+                    {d.status === 'ENVIADO_FORNECEDOR' && d.sent_to_supplier_at && (
+                      <div style={{ marginTop: '4px' }}>
+                        {getSLAStatus(d.sent_to_supplier_at) === 'ATRASADO' ? (
+                          <span style={{ fontSize: '10px', background: '#fee2e2', color: '#b91c1c', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>ATRASADO</span>
+                        ) : (
+                          <span style={{ fontSize: '10px', background: '#dcfce7', color: '#15803d', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>EM PRAZO</span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td><StatusBadge status={d.status} /></td>
                     <td className="text-sub">{new Date(d.created_at).toLocaleDateString('pt-BR')}</td>
                       <td className="td-actions">
                         {d.type === 'RNC' && d.status === 'CONCLUIDO' && (
                           <button className="btn-icon" title="Relatório 8D (Visualização/Download)" 
-                            onClick={() => open8D(d.id)}>8D</button>
+                            disabled={loading8D}
+                            onClick={() => open8D(d.id)}>{loading8D ? '...' : '8D'}</button>
                         )}
                         <button className="btn-icon" title="Editar" onClick={() => openEdit(d)}>✏️</button>
                       <button className="btn-icon btn-icon--danger" title="Excluir"
@@ -512,9 +541,23 @@ export default function Documentos() {
             <section className="preview-section" style={{ marginTop: '1.5rem' }}>
               <h4 style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>D3/D4 - AÇÕES CORRETIVAS</h4>
               {eightDData.capas.map((capa, i) => (
-                <div key={i} style={{ fontSize: '12px', padding: '8px', borderLeft: '3px solid #3b82f6', background: '#f0f9ff', marginTop: '8px' }}>
-                  <strong>[{capa.type}]</strong> {capa.description}
-                  <div style={{ color: '#64748b' }}>Responsável: {capa.responsible} | Prazo: {new Date(capa.due_date).toLocaleDateString()}</div>
+                <div key={i} style={{ padding: '12px', borderLeft: '4px solid #3b82f6', background: '#f8fafc', marginTop: '12px', borderRadius: '0 4px 4px 0' }}>
+                  <div style={{ fontWeight: '700', fontSize: '13px' }}>[{capa.type}] {capa.description}</div>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                    Responsável: {capa.responsible} | Prazo: {new Date(capa.due_date).toLocaleDateString()}
+                  </div>
+                  
+                  {capa.evidences && capa.evidences.length > 0 && (
+                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #e2e8f0' }}>
+                      <p style={{ fontSize: '10px', fontWeight: '800', color: '#0369a1', marginBottom: '5px' }}>EVIDÊNCIAS DE IMPLEMENTAÇÃO:</p>
+                      {capa.evidences.map((ev, j) => (
+                        <div key={j} style={{ fontSize: '12px', color: '#334155', marginBottom: '4px', paddingLeft: '8px' }}>
+                          • {ev.description}
+                          {ev.is_objective && <span style={{ color: '#10b981', fontWeight: '700', fontSize: '10px', marginLeft: '8px' }}>[OBJETIVA]</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </section>

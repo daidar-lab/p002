@@ -12,6 +12,7 @@ class DocumentRepository {
         d.defect_category,
         d.supplier_id,
         d.severity,
+        d.sent_to_supplier_at,
         s.name   AS supplier_name,
         s.email  AS supplier_email,
         d.created_at,
