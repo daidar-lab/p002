@@ -108,52 +108,57 @@ const MetricRenderer = ({ audit, compareWith = null }) => {
 
 export default function Auditorias() {
   const [activeTab, setActiveTab] = useState('meta');
-  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  // Query State
+  const [queryType, setQueryType] = useState('FLOW');
+  const [startDate, setStartDate] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // Compare State
+  const [compareMode, setCompareMode] = useState(false);
+  const [compStart, setCompStart] = useState(new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+  const [compEnd, setCompEnd] = useState(new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+
+  // Results
   const [selected, setSelected] = useState(null);
   const [compareWith, setCompareWith] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [filterType, setFilterType] = useState('ALL');
 
-  useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL}/audits/history`, {
-      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setHistory(data);
-          if (data.length > 0) setSelected(data[0]);
-        } else {
-          setHistory([]);
-        }
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const runQuery = async () => {
+    setLoading(true);
+    try {
+      // Period A
+      const resA = await fetch(`${import.meta.env.VITE_API_URL}/audits/query`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ type: queryType, start: startDate, end: endDate })
+      });
+      const dataA = await resA.json();
+      setSelected(dataA);
 
-  const handleSelect = (audit) => {
-    if (compareWith) {
-      if (audit.audit_type !== selected.audit_type) {
-        alert('Comparação permitida apenas entre snapshots do mesmo tipo.');
-        return;
+      // Period B (Comparison)
+      if (compareMode) {
+        const resB = await fetch(`${import.meta.env.VITE_API_URL}/audits/query`, {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ type: queryType, start: compStart, end: compEnd })
+        });
+        const dataB = await resB.json();
+        setCompareWith(dataB);
+      } else {
+        setCompareWith(null);
       }
-      setCompareWith(audit);
-    } else {
-      setSelected(audit);
+    } catch (err) {
+      alert('Erro ao executar auditoria: ' + err.message);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  // Lógica de agrupamento por horário (Dossiê)
-  const groupedHistory = history.reduce((acc, curr) => {
-    const timeKey = new Date(curr.generated_at).toISOString().slice(0, 19); // Agrupa por segundo exato
-    if (!acc[timeKey]) acc[timeKey] = [];
-    acc[timeKey].push(curr);
-    return acc;
-  }, {});
-
-  const [expandedGroups, setExpandedGroups] = useState({});
-
-  const toggleGroup = (key) => {
-    setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   return (
@@ -161,25 +166,8 @@ export default function Auditorias() {
       <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Meta-Governança SGNC</h1>
-          <p className="page-subtitle">Auditoria de Processos e Conformidade Sistêmica</p>
+          <p className="page-subtitle">Auditoria de Processos via Query Dinâmica (Real-time)</p>
         </div>
-        <button 
-          className="btn-primary" 
-          onClick={async () => {
-            try {
-              const res = await fetch(`${import.meta.env.VITE_API_URL}/audits/generate`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}` }
-              });
-              if (res.ok) {
-                alert('Dossiê de auditoria gerado com sucesso!');
-                window.location.reload();
-              }
-            } catch (err) { alert('Erro ao gerar snapshot'); }
-          }}
-        >
-          Gerar Novo Snapshot
-        </button>
       </header>
 
       <div className="audit-tabs">
@@ -187,7 +175,7 @@ export default function Auditorias() {
           className={`tab-btn ${activeTab === 'meta' ? 'tab-btn--active' : ''}`}
           onClick={() => setActiveTab('meta')}
         >
-          Snapshots de Auditoria
+          Plano de Auditoria
         </button>
         <button 
           className={`tab-btn ${activeTab === 'config' ? 'tab-btn--active' : ''}`}
@@ -199,69 +187,45 @@ export default function Auditorias() {
 
       {activeTab === 'meta' && (
         <div className="snapshot-grid">
-          <aside className="snapshot-list">
-            <div style={{ padding: 12, borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                <small style={{ fontWeight: 700, color: '#64748b' }}>HISTÓRICO DE DOSSIÊS</small>
-                <button 
-                  className={`btn-ghost ${compareWith ? 'btn-active' : ''}`}
-                  style={{ fontSize: '0.7rem', padding: '2px 8px' }}
-                  onClick={() => setCompareWith(compareWith ? null : {})}
-                >
-                  {compareWith ? 'Sair da Comparação' : 'Modo Comparar'}
-                </button>
-              </div>
-            </div>
-            
-            <div style={{ overflowY: 'auto', flex: 1 }}>
-              {loading ? (
-                <p style={{ padding: 16 }}>Carregando...</p>
-              ) : Object.keys(groupedHistory).length === 0 ? (
-                <p style={{ padding: 16, color: '#94a3b8', textAlign: 'center' }}>Nenhum dossiê gerado.</p>
-              ) : Object.keys(groupedHistory).map(timeKey => {
-                const group = groupedHistory[timeKey];
-                const isExpanded = expandedGroups[timeKey] || group.some(a => a.id === selected?.id);
-                
-                return (
-                  <div key={timeKey} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <div 
-                      style={{ 
-                        padding: '12px 16px', cursor: 'pointer', background: isExpanded ? '#f8fafc' : '#fff',
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                      }}
-                      onClick={() => toggleGroup(timeKey)}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 800, fontSize: '13px' }}>Dossiê {new Date(timeKey).toLocaleTimeString()}</div>
-                        <div style={{ fontSize: '10px', color: '#94a3b8' }}>{new Date(timeKey).toLocaleDateString()} • {group.length} Snapshots</div>
-                      </div>
-                      <span style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: '0.2s' }}>▼</span>
-                    </div>
+          <aside className="snapshot-list" style={{ padding: '20px' }}>
+            <div className="query-builder">
+              <h3 style={{ fontSize: '13px', marginBottom: '15px', color: '#1e293b' }}>FILTROS DE AUDITORIA</h3>
+              
+              <label className="form-label" style={{ fontSize: '11px' }}>Tipo de Fonte:</label>
+              <select className="form-input" value={queryType} onChange={e => setQueryType(e.target.value)} style={{ marginBottom: '15px' }}>
+                <option value="FLOW">Fluxo de Processos (Flow)</option>
+                <option value="DECISION">Decisões Técnicas (Decision)</option>
+                <option value="SIGNATURE">Latência de Assinaturas (Signature)</option>
+                <option value="RECURRENCE">Padrões de Reincidência</option>
+              </select>
 
-                    {isExpanded && (
-                      <div style={{ padding: '4px 16px 12px 16px', background: '#f8fafc' }}>
-                        {group.map(audit => (
-                          <div 
-                            key={audit.id} 
-                            className={`snapshot-subitem ${selected?.id === audit.id ? 'active' : ''}`}
-                            style={{ 
-                              padding: '8px 12px', margin: '4px 0', borderRadius: '6px', cursor: 'pointer',
-                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                              background: selected?.id === audit.id ? '#1e293b' : '#fff',
-                              color: selected?.id === audit.id ? '#fff' : 'inherit',
-                              border: '1px solid #e2e8f0'
-                            }}
-                            onClick={(e) => { e.stopPropagation(); handleSelect(audit); }}
-                          >
-                            <AuditTypeBadge type={audit.audit_type} />
-                            <small style={{ fontSize: '9px' }}>{audit.audit_type}</small>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              <div className="period-box" style={{ padding: '12px', background: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd' }}>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: '#0369a1', marginBottom: '8px' }}>PERÍODO PRINCIPAL (A)</p>
+                <input type="date" className="form-input" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ marginBottom: '8px' }} />
+                <input type="date" className="form-input" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              </div>
+
+              <div style={{ margin: '15px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input type="checkbox" checked={compareMode} onChange={e => setCompareMode(e.target.checked)} id="compMode" />
+                <label htmlFor="compMode" style={{ fontSize: '12px', fontWeight: 600 }}>Modo Comparação</label>
+              </div>
+
+              {compareMode && (
+                <div className="period-box" style={{ padding: '12px', background: '#fdf2f8', borderRadius: '8px', border: '1px solid #fbcfe8', marginBottom: '15px' }}>
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: '#9d174d', marginBottom: '8px' }}>PERÍODO DE COMPARAÇÃO (B)</p>
+                  <input type="date" className="form-input" value={compStart} onChange={e => setCompStart(e.target.value)} style={{ marginBottom: '8px' }} />
+                  <input type="date" className="form-input" value={compEnd} onChange={e => setCompEnd(e.target.value)} />
+                </div>
+              )}
+
+              <button 
+                className="btn-primary" 
+                style={{ width: '100%', marginTop: '10px' }}
+                onClick={runQuery}
+                disabled={loading}
+              >
+                {loading ? 'Executando Query...' : 'Executar Auditoria'}
+              </button>
             </div>
           </aside>
 
@@ -272,15 +236,19 @@ export default function Auditorias() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <AuditTypeBadge type={selected.audit_type} />
-                      <h2 style={{ margin: '8px 0' }}>{compareWith?.id ? 'Comparação de Snapshots' : 'Detalhamento da Auditoria'}</h2>
+                      <h2 style={{ margin: '8px 0' }}>{compareMode ? 'Análise Comparativa de Períodos' : 'Resultado da Auditoria'}</h2>
+                      <p style={{ fontSize: '12px', color: '#64748b' }}>
+                        Fonte: {selected.audit_type} | Período: {new Date(selected.period_start).toLocaleDateString()} - {new Date(selected.period_end).toLocaleDateString()}
+                      </p>
                     </div>
                   </div>
                 </header>
-                <MetricRenderer audit={selected} compareWith={compareWith?.id ? compareWith : null} />
+                <MetricRenderer audit={selected} compareWith={compareWith} />
               </>
             ) : (
               <div style={{ textAlign: 'center', marginTop: 100 }}>
-                <p style={{ color: '#94a3b8' }}>Selecione um snapshot para visualizar o rastro factual.</p>
+                <div style={{ fontSize: '48px', marginBottom: '20px' }}>📊</div>
+                <p style={{ color: '#94a3b8' }}>Configure os filtros ao lado e execute a query para extrair o rastro factual.</p>
               </div>
             )}
           </main>

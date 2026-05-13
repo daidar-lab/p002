@@ -21,6 +21,25 @@ router.post('/run', async (req, res) => {
 });
 
 /**
+ * Consulta Dinâmica (Live Query) - Substitui snapshots (BR-AUD-QUERY)
+ */
+router.post('/query', async (req, res) => {
+  try {
+    const { type, start, end } = req.body;
+    const result = await AuditService.queryAudit(type, start, end);
+    res.json({
+      audit_type: type,
+      period_start: start,
+      period_end: end,
+      result_snapshot: result,
+      generated_at: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+/**
  * Disparo simplificado via botão (Snapshot 30 dias)
  */
 router.post('/generate', async (req, res) => {

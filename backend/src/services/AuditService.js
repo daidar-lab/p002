@@ -11,8 +11,16 @@ class AuditService {
 
     let rawData;
     let resultSnapshot = {};
+    return await this.queryAudit(type, start, end);
+  }
 
-    // Roteamento de análise por tipo (BR-AUD-SCHEMA)
+  /**
+   * Executa a análise sem persistir snapshot (BR-AUD-LIVE)
+   */
+  async queryAudit(type, start, end) {
+    let rawData;
+    let resultSnapshot = {};
+
     switch (type) {
       case 'FLOW':
         rawData = await AuditRepository.analyzeFlow(start, end);
@@ -65,7 +73,14 @@ class AuditService {
         throw new Error(`Tipo de auditoria '${type}' não suportado.`);
     }
 
-    // Persistência Soberana do Snapshot (BR-AUD-EXECUTOR)
+    return resultSnapshot;
+  }
+
+  /**
+   * Persistência Soberana do Snapshot (BR-AUD-EXECUTOR)
+   * @deprecated Auditoria baseada em query é preferida (BR-AUD-QUERY)
+   */
+  async _saveAudit(type, start, end, resultSnapshot, executedBy) {
     return await AuditRepository.saveAudit({
       audit_type: type,
       period_start: start,
