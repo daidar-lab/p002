@@ -14,6 +14,12 @@ const STATUS_COLORS = {
   AGUARDANDO_DISPOSICAO: 'badge--disposicao',
   ENVIADO_FORNECEDOR: 'badge--enviado',
   CANCELADO:  'badge--cancelado',
+  // RVT Statuses
+  PENDENTE: 'badge--enviado',
+  AGUARDANDO_EXECUCAO: 'badge--disposicao',
+  EM_VISITA: 'badge--analise',
+  FINALIZADA: 'badge--assinaturas',
+  ASSINADA: 'badge--concluido',
 };
 
 const STATUS_LABELS = {
@@ -24,6 +30,12 @@ const STATUS_LABELS = {
   AGUARDANDO_DISPOSICAO: 'Aguardando Disposição',
   ENVIADO_FORNECEDOR: 'Enviado ao Fornecedor',
   CANCELADO:  'Cancelado',
+  // RVT Labels
+  PENDENTE: 'Aguardando Agendamento',
+  AGUARDANDO_EXECUCAO: 'Aguardando Execução',
+  EM_VISITA: 'Em Visita',
+  FINALIZADA: 'Finalizada (Aguardando Assinaturas)',
+  ASSINADA: 'Assinada',
 };
 
 export function TypeBadge({ type }) {

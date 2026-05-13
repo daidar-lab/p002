@@ -24,6 +24,7 @@ import PortalFornecedor from './pages/Portal/PortalFornecedor.jsx';
 import RHEList from './pages/RHE/index.jsx';
 import RHEDetail from './pages/RHE/Detail.jsx';
 import RHECreate from './pages/RHE/Create.jsx';
+import Rvt from './pages/Rvt/index.jsx';
 
 import './index.css';
 
@@ -35,6 +36,7 @@ const NAV = [
   { to: '/rhes',         label: 'Homologação (RHE)' },
   { to: '/fornecedores', label: 'Fornecedores' },
   { to: '/auditorias',   label: 'Plano de Auditorias' },
+  { to: '/rvt',          label: 'Visita Técnica (RVT)' },
 ];
 
 function Sidebar() {
@@ -156,6 +158,7 @@ function AppShell() {
           <Route path="/rhes"         element={<RHEList />} />
           <Route path="/rhes/new"     element={<RHECreate />} />
           <Route path="/rhes/:id"     element={<RHEDetail />} />
+          <Route path="/rvt"          element={<Rvt />} />
 
           {/* ✅ Proteção por ROLE */}
           <Route
@@ -188,6 +191,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/portal/:token" element={<PortalFornecedor />} />
+          <Route path="/portal/rvt/:token" element={<PortalFornecedor />} />
           <Route path="*" element={<AppShell />} />
         </Routes>
         <ToastContainer />

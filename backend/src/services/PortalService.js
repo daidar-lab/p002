@@ -32,30 +32,39 @@ class PortalService {
   }
   /**
    * Gera um Magic Link soberano (Banco > JWT)
+   * Suporta document_id ou rvt_id
    */
-  async generateLink(documentId) {
-    const doc = await DocumentRepository.getById(documentId);
-    if (!doc) throw new Error('Documento não encontrado');
-
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 48); // 48h de validade
+  async createMagicLink({ document_id, rvt_id, supplier_id, scope, expires_at }, client = null) {
+    const expiresAt = expires_at || new Date(Date.now() + 48 * 60 * 60 * 1000);
 
     // 1. Persistência Soberana no Banco
     const linkRecord = await PortalRepository.saveLink({
-      document_id: documentId,
-      supplier_id: doc.supplier_id,
+      document_id,
+      rvt_id,
+      supplier_id,
       expires_at: expiresAt,
-      scope: 'EVIDENCE_SUBMISSION'
-    });
+      scope
+    }, client);
 
     // 2. JWT atua apenas como portador do token_id
     const token = jwt.sign(
       { token_id: linkRecord.token_id }, 
       process.env.JWT_SECRET || 'secret_hardened', 
-      { expiresIn: '48h' }
+      { expiresIn: '7d' } // Aumentado para 7 dias para evitar expiração prematura no dev
     );
 
-    return { token, expires_at: expiresAt };
+    return { token, token_id: linkRecord.token_id, expires_at: expiresAt };
+  }
+
+  async generateLink(documentId) {
+    const doc = await DocumentRepository.getById(documentId);
+    if (!doc) throw new Error('Documento não encontrado');
+
+    return await this.createMagicLink({
+      document_id: documentId,
+      supplier_id: doc.supplier_id,
+      scope: 'EVIDENCE_SUBMISSION'
+    });
   }
 
   /**
@@ -69,19 +78,96 @@ class PortalService {
       if (!linkRecord) throw new Error('Link inválido');
       if (linkRecord.used_at) throw new Error('Link já utilizado');
       if (new Date() > new Date(linkRecord.expires_at)) throw new Error('Link expirado');
-      if (linkRecord.scope !== 'EVIDENCE_SUBMISSION') throw new Error('Escopo inválido');
+      
+      const validScopes = ['EVIDENCE_SUBMISSION', 'RVT_SCHEDULING', 'RVT_SIGNATURE'];
+      if (!validScopes.includes(linkRecord.scope)) throw new Error('Escopo inválido');
 
       return linkRecord;
     } catch (err) {
       console.error(`[PORTAL ERROR] Falha na validação do token: ${err.message}`);
-      if (err.name === 'JsonWebTokenError') console.error('Erro de assinatura JWT. Verifique se o JWT_SECRET no .env é o mesmo de quando o link foi gerado.');
       throw new Error(`Acesso negado: ${err.message}`);
     }
   }
 
   async getPortalData(token) {
     const linkRecord = await this.validateAccess(token);
-    return await PortalRepository.getPortalViewData(linkRecord.document_id);
+    
+    if (linkRecord.scope === 'EVIDENCE_SUBMISSION') {
+      return await PortalRepository.getPortalViewData(linkRecord.document_id);
+    }
+    
+    if (linkRecord.scope === 'RVT_SCHEDULING' || linkRecord.scope === 'RVT_SIGNATURE') {
+      return await PortalRepository.getPortalRvtData(linkRecord.rvt_id);
+    }
+
+    throw new Error('Tipo de acesso não suportado');
+  }
+
+  async selectRvtDate(token, selectedDate) {
+    const linkRecord = await this.validateAccess(token);
+    if (linkRecord.scope !== 'RVT_SCHEDULING') throw new Error('Operação inválida');
+
+    const rvt = await PortalRepository.getPortalRvtData(linkRecord.rvt_id);
+    const date = new Date(selectedDate);
+    
+    if (date < new Date(rvt.window_start) || date > new Date(rvt.window_end)) {
+      throw new Error('Data fora da janela permitida');
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      await client.query(
+        "UPDATE audit_quality.rvts SET scheduled_date = $1, visit_date = $1, status = 'AGUARDANDO_EXECUCAO' WHERE id = $2",
+        [selectedDate, linkRecord.rvt_id]
+      );
+
+      await PortalRepository.markAsUsed(linkRecord.token_id);
+      
+      await client.query('COMMIT');
+      return { success: true };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async signRvt(token, signerName) {
+    const linkRecord = await this.validateAccess(token);
+    if (linkRecord.scope !== 'RVT_SIGNATURE') throw new Error('Operação inválida');
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const RvtRepository = (await import('../repositories/RvtRepository.js')).default;
+      
+      // Assina como Representante Técnico
+      await RvtRepository.upsertSignature({
+        rvt_id: linkRecord.rvt_id,
+        role: 'Representante Técnico',
+        signer_name: signerName,
+        status: 'SIGNED',
+        signed_at: new Date(),
+        signature_hash: `SHA256:${Math.random().toString(36).substring(7)}` // Simulado
+      }, client);
+
+      const RvtService = (await import('./RvtService.js')).default;
+      await RvtService._checkCompletion(linkRecord.rvt_id, client);
+
+      await PortalRepository.markAsUsed(linkRecord.token_id);
+
+      await client.query('COMMIT');
+      return { success: true };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   /**

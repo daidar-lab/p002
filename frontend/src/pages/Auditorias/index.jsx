@@ -109,12 +109,12 @@ const MetricRenderer = ({ audit, compareWith = null }) => {
 export default function Auditorias() {
   const [activeTab, setActiveTab] = useState('meta');
   const [loading, setLoading] = useState(false);
-  
+
   // Query State
   const [queryType, setQueryType] = useState('FLOW');
   const [startDate, setStartDate] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  
+
   // Compare State
   const [compareMode, setCompareMode] = useState(false);
   const [compStart, setCompStart] = useState(new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
@@ -130,7 +130,7 @@ export default function Auditorias() {
       // Period A
       const resA = await fetch(`${import.meta.env.VITE_API_URL}/audits/query`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}`,
           'Content-Type': 'application/json'
         },
@@ -143,7 +143,7 @@ export default function Auditorias() {
       if (compareMode) {
         const resB = await fetch(`${import.meta.env.VITE_API_URL}/audits/query`, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}`,
             'Content-Type': 'application/json'
           },
@@ -171,13 +171,13 @@ export default function Auditorias() {
       </header>
 
       <div className="audit-tabs">
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'meta' ? 'tab-btn--active' : ''}`}
           onClick={() => setActiveTab('meta')}
         >
           Plano de Auditoria
         </button>
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'config' ? 'tab-btn--active' : ''}`}
           onClick={() => setActiveTab('config')}
         >
@@ -190,7 +190,7 @@ export default function Auditorias() {
           <aside className="snapshot-list" style={{ padding: '20px' }}>
             <div className="query-builder">
               <h3 style={{ fontSize: '13px', marginBottom: '15px', color: '#1e293b' }}>FILTROS DE AUDITORIA</h3>
-              
+
               <label className="form-label" style={{ fontSize: '11px' }}>Tipo de Fonte:</label>
               <select className="form-input" value={queryType} onChange={e => setQueryType(e.target.value)} style={{ marginBottom: '15px' }}>
                 <option value="FLOW">Fluxo de Processos (Flow)</option>
@@ -218,8 +218,8 @@ export default function Auditorias() {
                 </div>
               )}
 
-              <button 
-                className="btn-primary" 
+              <button
+                className="btn-primary"
                 style={{ width: '100%', marginTop: '10px' }}
                 onClick={runQuery}
                 disabled={loading}
@@ -247,7 +247,6 @@ export default function Auditorias() {
               </>
             ) : (
               <div style={{ textAlign: 'center', marginTop: 100 }}>
-                <div style={{ fontSize: '48px', marginBottom: '20px' }}>📊</div>
                 <p style={{ color: '#94a3b8' }}>Configure os filtros ao lado e execute a query para extrair o rastro factual.</p>
               </div>
             )}

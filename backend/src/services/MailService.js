@@ -159,19 +159,31 @@ class MailService {
   /**
    * Notificações de SLA (BR-IN15-01)
    */
-  async sendSLANotification({ type, documentCode, supplierEmail, managerEmail, contactName, businessDays }) {
+  async sendSLANotification({ type, documentCode, supplierEmail, managerEmail, contactName, businessDays, module = 'RNC', magic_link }) {
     let subject = '';
     let text = '';
     let recipients = [supplierEmail];
 
-    if (type === 'SLA_BREACH_DAILY') {
-      subject = `🚨 ATRASO CRÍTICO (SLA): Resposta 8D Pendente — ${documentCode}`;
-      text = `Prezado ${contactName || 'Fornecedor'},\n\nO prazo de 10 dias úteis para a resposta do documento ${documentCode} foi ULTRAPASSADO (${businessDays} dias úteis).\n\nEste atraso impacta a meta-governança da Cidade Imperial. Solicitamos o preenchimento imediato das informações no portal.\n\nAtenciosamente,\nGestão de Qualidade`;
-      
-      if (managerEmail) recipients.push(managerEmail);
+    const linkText = magic_link ? `\n\nAcesse o link seguro para regularizar:\n${magic_link}` : '';
+
+    if (module === 'RVT') {
+      if (type === 'SLA_BREACH_DAILY') {
+        subject = `🚨 ATRASO CRÍTICO (SLA): Agendamento de Visita Pendente — ${documentCode}`;
+        text = `Prezado ${contactName || 'Fornecedor'},\n\nO prazo de 10 dias úteis para o agendamento da visita técnica ${documentCode} foi ULTRAPASSADO (${businessDays} dias úteis).\n\nSolicitamos que acesse o portal e selecione uma data imediatamente.${linkText}\n\nAtenciosamente,\nGestão de Qualidade`;
+        if (managerEmail) recipients.push(managerEmail);
+      } else {
+        subject = `Lembrete: Prazo de Agendamento de Visita — ${documentCode}`;
+        text = `Olá ${contactName || 'Fornecedor'},\n\nEste é um lembrete periódico sobre a necessidade de agendar a visita técnica ${documentCode}.\n\nLembramos que o prazo total é de 10 dias úteis a partir da abertura.${linkText}\n\nAtenciosamente,\nEquipe de Qualidade`;
+      }
     } else {
-      subject = `Lembrete: Prazo de Resposta 8D — ${documentCode}`;
-      text = `Olá ${contactName || 'Fornecedor'},\n\nEste é um lembrete periódico sobre a necessidade de preenchimento do plano de ação (8D) para o documento ${documentCode}.\n\nLembramos que o prazo total é de 10 dias úteis.\n\nAtenciosamente,\nEquipe de Qualidade`;
+      if (type === 'SLA_BREACH_DAILY') {
+        subject = `🚨 ATRASO CRÍTICO (SLA): Resposta 8D Pendente — ${documentCode}`;
+        text = `Prezado ${contactName || 'Fornecedor'},\n\nO prazo de 10 dias úteis para a resposta do documento ${documentCode} foi ULTRAPASSADO (${businessDays} dias úteis).\n\nEste atraso impacta a meta-governança da Cidade Imperial. Solicitamos o preenchimento imediato das informações no portal.${linkText}\n\nAtenciosamente,\nGestão de Qualidade`;
+        if (managerEmail) recipients.push(managerEmail);
+      } else {
+        subject = `Lembrete: Prazo de Resposta 8D — ${documentCode}`;
+        text = `Olá ${contactName || 'Fornecedor'},\n\nEste é um lembrete periódico sobre a necessidade de preenchimento do plano de ação (8D) para o documento ${documentCode}.\n\nLembramos que o prazo total é de 10 dias úteis.${linkText}\n\nAtenciosamente,\nEquipe de Qualidade`;
+      }
     }
 
     return this.send({
@@ -179,6 +191,24 @@ class MailService {
       subject,
       text,
       triggered_by: 'sistema_cron'
+    });
+  }
+
+  async sendRvtSchedulingRequest({ rvt_code, supplier_email, window_start, window_end, magic_link }) {
+    return this.send({
+      to: supplier_email,
+      subject: `📅 Agendamento de Visita Técnica: ${rvt_code}`,
+      text: `Atenção Fornecedor,\n\nUm novo Registro de Visita Técnica (${rvt_code}) foi aberto.\n\nPor favor, selecione uma data para a visita entre ${new Date(window_start).toLocaleDateString()} e ${new Date(window_end).toLocaleDateString()} através do link abaixo:\n\n${magic_link}\n\nAtenciosamente,\nGestão de Qualidade`,
+      triggered_by: 'sistema'
+    });
+  }
+
+  async sendRvtSignatureRequest({ rvt_code, supplier_email, magic_link }) {
+    return this.send({
+      to: supplier_email,
+      subject: `🖊️ Assinatura Pendente: Visita Técnica ${rvt_code}`,
+      text: `Atenção Fornecedor,\n\nA Visita Técnica ${rvt_code} foi finalizada e requer sua assinatura digital como Representante Técnico.\n\nAcesse o link abaixo para revisar o relatório e assinar:\n\n${magic_link}\n\nAtenciosamente,\nGestão de Qualidade`,
+      triggered_by: 'sistema'
     });
   }
 }

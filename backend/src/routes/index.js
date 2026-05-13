@@ -12,6 +12,8 @@ import notificationRoutes from './notification.routes.js';
 import snapshotRoutes from './snapshots.routes.js';
 import adminRoutes from './admin.routes.js';
 import rheRoutes from './rhe.routes.js';
+import dashboardRoutes from './dashboard.routes.js';
+import rvtRoutes from './rvt.routes.js';
 
 const router = Router();
 
@@ -27,5 +29,7 @@ router.use('/notifications', notificationRoutes);
 router.use('/snapshots', snapshotRoutes);
 router.use('/admin', adminRoutes);
 router.use('/rhes', rheRoutes);
+router.use('/dashboard', dashboardRoutes);
+router.use('/rvt', rvtRoutes);
 
 export default router;

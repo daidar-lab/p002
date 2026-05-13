@@ -1,13 +1,14 @@
 import pool from '../config/db.js';
 
 class PortalRepository {
-  async saveLink({ document_id, supplier_id, expires_at, scope = 'EVIDENCE_SUBMISSION' }) {
+  async saveLink({ document_id, rvt_id, supplier_id, expires_at, scope = 'EVIDENCE_SUBMISSION' }, client = null) {
     const query = `
-      INSERT INTO audit_quality.magic_links (document_id, supplier_id, expires_at, scope)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO audit_quality.magic_links (document_id, rvt_id, supplier_id, expires_at, scope)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
-    const result = await pool.query(query, [document_id, supplier_id, expires_at, scope]);
+    const db = client || pool;
+    const result = await db.query(query, [document_id || null, rvt_id || null, supplier_id, expires_at, scope]);
     return result.rows[0];
   }
 
@@ -39,6 +40,28 @@ class PortalRepository {
       WHERE d.id = $1
     `;
     const result = await pool.query(query, [documentId]);
+    return result.rows[0];
+  }
+
+  /**
+   * Busca dados de RVT para o Portal
+   */
+  async getPortalRvtData(rvtId) {
+    const query = `
+      SELECT 
+        r.*, 
+        s.name as supplier_name,
+        (
+          SELECT json_agg(json_build_object('code', d.code, 'description', d.item_description))
+          FROM audit_quality.rvt_links rl
+          JOIN audit_quality.documents d ON d.id = rl.document_id
+          WHERE rl.rvt_id = r.id
+        ) as linked_rncs
+      FROM audit_quality.rvts r
+      JOIN audit_quality.suppliers s ON s.id = r.supplier_id
+      WHERE r.id = $1
+    `;
+    const result = await pool.query(query, [rvtId]);
     return result.rows[0];
   }
 }
