@@ -6,6 +6,10 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * S3Service - Gestão de Artefatos Binários
+ * CONFORMIDADE BR-RET-01: Retenção permanente de anexos.
+ */
 class S3Service {
   constructor() {
     const hasCredentials = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY;

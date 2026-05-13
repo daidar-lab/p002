@@ -28,6 +28,8 @@ export default function Documentos() {
   const [saving, setSaving]         = useState(false);
   const [signatures, setSignatures] = useState(null);
   const [acrData, setAcrData]       = useState(null);
+  const [eightDData, setEightDData] = useState(null);
+  const [eightDOpen, setEightDOpen] = useState(false);
 
   const [filterType, setFilterType]     = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -71,6 +73,17 @@ export default function Documentos() {
       });
       if (res.ok) setSignatures(await res.json());
     } catch (err) { console.error('Erro ao buscar assinaturas', err); }
+  };
+
+  const open8D = async (id) => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/reports/data/${id}`, {
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}` }
+      });
+      if (!res.ok) throw new Error('Erro ao buscar dados do 8D');
+      setEightDData(await res.json());
+      setEightDOpen(true);
+    } catch (err) { toast(err.message, 'error'); }
   };
 
   const handleSign = async (role) => {
@@ -233,31 +246,12 @@ export default function Documentos() {
                   </td>
                   <td><StatusBadge status={d.status} /></td>
                     <td className="text-sub">{new Date(d.created_at).toLocaleDateString('pt-BR')}</td>
-                    <td className="td-actions">
-                      {d.type === 'RNC' && d.status === 'CONCLUIDO' && (
-                        <button className="btn-icon" title="Gerar Relatório 8D" 
-                          onClick={async () => {
-                            try {
-                              const res = await fetch(`${import.meta.env.VITE_API_URL}/reports/generate/${d.id}`, {
-                                method: 'POST',
-                                headers: { 'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}` }
-                              });
-                              if (!res.ok) {
-                                const err = await res.json();
-                                throw new Error(err.error || 'Erro na geração');
-                              }
-                              const report = await res.json();
-                              const token = sessionStorage.getItem('aq_token');
-                              // ✅ CORREÇÃO: O ID do relatório está dentro de db_record
-                              const reportId = report.db_record?.id || report.id;
-                              window.open(`${import.meta.env.VITE_API_URL}/reports/download/${reportId}?token=${token}`, '_blank');
-                              toast('Relatório 8D gerado com sucesso');
-                            } catch (err) {
-                              toast(err.message, 'error');
-                            }
-                          }}>8D</button>
-                      )}
-                      <button className="btn-icon" title="Editar" onClick={() => openEdit(d)}>✏️</button>
+                      <td className="td-actions">
+                        {d.type === 'RNC' && d.status === 'CONCLUIDO' && (
+                          <button className="btn-icon" title="Relatório 8D (Visualização/Download)" 
+                            onClick={() => open8D(d.id)}>8D</button>
+                        )}
+                        <button className="btn-icon" title="Editar" onClick={() => openEdit(d)}>✏️</button>
                       <button className="btn-icon btn-icon--danger" title="Excluir"
                         onClick={() => setConfirmId(d.id)}>🗑</button>
                     </td>
@@ -485,6 +479,56 @@ export default function Documentos() {
       <ConfirmModal open={!!confirmId} title="Excluir documento"
         description="Essa ação não pode ser desfeita. Deseja continuar?"
         onConfirm={handleDelete} onCancel={() => setConfirmId(null)} />
+
+      {/* MODAL 8D DINÂMICO (BR-XX) */}
+      <Drawer open={eightDOpen} onClose={() => setEightDOpen(false)} title={`Relatório 8D - ${eightDData?.document?.code}`}>
+        {eightDData && (
+          <div className="eightd-preview">
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
+              <button className="btn-primary" onClick={() => {
+                const token = sessionStorage.getItem('aq_token');
+                window.open(`${import.meta.env.VITE_API_URL}/reports/pdf/${eightDData.document.id}?token=${token}`, '_blank');
+              }}>⬇ Baixar PDF</button>
+              <small style={{ color: '#94a3b8' }}>Gerado em: {new Date(eightDData.generated_at).toLocaleString()}</small>
+            </div>
+
+            <section className="preview-section">
+              <h4 style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>D1 - IDENTIFICAÇÃO</h4>
+              <div style={{ fontSize: '13px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
+                <div><strong>Fornecedor:</strong> {eightDData.document.supplier_name}</div>
+                <div><strong>Data:</strong> {new Date(eightDData.document.created_at).toLocaleDateString()}</div>
+              </div>
+              <p style={{ fontSize: '13px', marginTop: '10px' }}><strong>Descrição:</strong> {eightDData.document.item_description}</p>
+            </section>
+
+            <section className="preview-section" style={{ marginTop: '1.5rem' }}>
+              <h4 style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>D2 - ANÁLISE DE CAUSA RAIZ</h4>
+              <p style={{ fontSize: '13px', marginTop: '10px' }}><strong>Método:</strong> {eightDData.acr?.type === '5_WHYS' ? '5 Porquês' : 'Ishikawa'}</p>
+              <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '4px', marginTop: '8px' }}>
+                <p style={{ fontSize: '14px', fontWeight: '600' }}>{eightDData.acr?.root_cause || 'Causa não descrita'}</p>
+              </div>
+            </section>
+
+            <section className="preview-section" style={{ marginTop: '1.5rem' }}>
+              <h4 style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>D3/D4 - AÇÕES CORRETIVAS</h4>
+              {eightDData.capas.map((capa, i) => (
+                <div key={i} style={{ fontSize: '12px', padding: '8px', borderLeft: '3px solid #3b82f6', background: '#f0f9ff', marginTop: '8px' }}>
+                  <strong>[{capa.type}]</strong> {capa.description}
+                  <div style={{ color: '#64748b' }}>Responsável: {capa.responsible} | Prazo: {new Date(capa.due_date).toLocaleDateString()}</div>
+                </div>
+              ))}
+            </section>
+
+            <section className="preview-section" style={{ marginTop: '1.5rem' }}>
+              <h4 style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>D5 - VERIFICAÇÃO</h4>
+              <div style={{ fontSize: '13px', marginTop: '10px' }}>
+                <div><strong>Decisão:</strong> {eightDData.decision?.decision}</div>
+                <p style={{ color: '#64748b', fontSize: '12px' }}>{eightDData.decision?.evidence_summary}</p>
+              </div>
+            </section>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 }

@@ -1,5 +1,9 @@
 import AuditRepository from '../repositories/AuditRepository.js';
 
+/**
+ * AuditService - Governança e Rastreabilidade
+ * CONFORMIDADE BR-RET-01: Todos os registros de auditoria são mantidos indefinidamente.
+ */
 class AuditService {
   /**
    * Executa auditoria sistêmica e gera Snapshot Imutável (BR-AUD-FACT)

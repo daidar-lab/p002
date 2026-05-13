@@ -20,49 +20,47 @@ class ReportService {
    * Consolida D1-D7 e gera Snapshot imutável (BR-PDF-01/02)
    * Agora integrado ao S3 (BR-S3-01/02/03)
    */
-  async generate8DReport(documentId, userId) {
-    // 1. Validações Normativas
+  /**
+   * Coleta dados para visualização dinâmica (BR-XX-UI)
+   */
+  async get8DData(documentId) {
     const doc = await DocumentRepository.getById(documentId);
-    if (!doc || doc.status !== 'CONCLUIDO') {
-      throw new Error('Bloqueio: Relatório 8D exige que o documento esteja no status CONCLUIDO.');
-    }
+    if (!doc) throw new Error('Documento não encontrado');
 
+    const acr = await RootCauseRepository.findByDocumentId(documentId);
+    const capas = await CapaRepository.findActiveByDocumentId(documentId);
+    const sigStatus = await SignatureService.getHardenedState(documentId);
     let lastDecision = await EfficacyRepository.getLastDecision(documentId);
-    
+
     // Fallback: Se não houver decisão mas o doc está concluído, persistimos uma decisão de migração
     if (!lastDecision && doc.status === 'CONCLUIDO') {
-      console.log(`[ReportService] Criando decisão de eficácia retroativa para o documento ${documentId}`);
       lastDecision = await EfficacyRepository.saveDecision({
         document_id: documentId,
         decision: 'ENCERRAMENTO_DEFINITIVO',
         rules_applied: ['MIGRACAO_SISTEMA'],
         evidence_summary: 'Encerramento retroativo (Legado) para geração de relatório 8D.'
       });
-      lastDecision.decision = 'ENCERRAMENTO_DEFINITIVO';
     }
 
-    if (!lastDecision) {
-      throw new Error('Bloqueio: Relatório 8D exige uma decisão de eficácia registrada.');
-    }
+    return {
+      document: doc,
+      acr,
+      capas,
+      signatures: sigStatus.current_signatures,
+      decision: lastDecision,
+      generated_at: new Date().toISOString()
+    };
+  }
 
-    const signaturesComplete = await SignatureService.canProceedToDisposition(documentId);
-    if (!signaturesComplete) {
-      throw new Error('Bloqueio: Relatório 8D exige 100% das assinaturas obrigatórias.');
-    }
+  /**
+   * Gera PDF On-the-fly sem persistência (BR-XX-PDF)
+   */
+  async generate8DStream(documentId, res) {
+    const data = await this.get8DData(documentId);
+    const { document: doc, acr, capas, signatures, decision } = data;
 
-    // 2. Agregação de Dados
-    const acr = await RootCauseRepository.findByDocumentId(documentId);
-    const capas = await CapaRepository.findActiveByDocumentId(documentId);
-    const sigStatus = await SignatureService.getHardenedState(documentId);
-
-    // 3. Preparação do PDF Local (Buffer Temporário)
-    const tempFileName = `8D_${doc.code}_${Date.now()}.pdf`;
-    const tempPath = path.join(__dirname, '../../uploads/reports', tempFileName);
     const pdfDoc = new PDFDocument({ margin: 50, size: 'A4' });
-    const writeStream = fs.createWriteStream(tempPath);
     
-    pdfDoc.pipe(writeStream);
-
     // --- Estilos e Cabeçalho ---
     pdfDoc.fillColor('#0f172a').fontSize(22).font('Helvetica-Bold').text('RELATÓRIO DE INVESTIGAÇÃO 8D', { align: 'center' });
     pdfDoc.fontSize(10).font('Helvetica').text(`Documento de Qualidade: ${doc.code}`, { align: 'center' });
@@ -142,69 +140,10 @@ class ReportService {
       }
     }
 
-    // D7 - Trilha de Auditoria
-    pdfDoc.moveDown();
-    pdfDoc.rect(50, 750, 500, 1).fill('#e2e8f0');
-    pdfDoc.fontSize(8).fillColor('#94a3b8').text(`Artefato imutável gerado pelo sistema Audit Quality SGNC. UUID Decision: ${lastDecision.id}`, 50, 760, { align: 'center' });
+    pdfDoc.fontSize(8).fillColor('#94a3b8').text(`Projeção dinâmica gerada em ${data.generated_at} | ID: ${doc.id} | Origem: SGNC`, 50, 760, { align: 'center' });
 
+    pdfDoc.pipe(res);
     pdfDoc.end();
-
-    // 4. Fluxo AWS S3 e Limpeza Local (Hardened Flow)
-    return new Promise((resolve, reject) => {
-      writeStream.on('finish', async () => {
-        const s3Key = S3Service.generateKey(documentId);
-        
-        try {
-          // Upload via ReadStream (BR-S3-01/03)
-          await S3Service.uploadFileStream(tempPath, s3Key);
-
-          const fileBuffer = fs.readFileSync(tempPath);
-          const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-
-          // Persistência com Chave Imutável (Idempotency Gate)
-          try {
-            const record = await ReportRepository.save({
-              document_id: documentId,
-              decision_uuid: lastDecision.id,
-              file_name: s3Key, // Agora armazena apenas a KEY (Hardened)
-              file_hash: hash,
-              created_by: userId
-            });
-
-            // Geramos uma URL temporária para a resposta imediata
-            const temporaryUrl = await S3Service.getPresignedUrl(s3Key);
-
-            resolve({
-              operation: "S3_UPLOAD",
-              document_id: documentId,
-              status: "SUCCESS",
-              permanent_uri: temporaryUrl, // URL protegida (expira em 1h)
-              object_key: s3Key,
-              deterministic: true,
-              db_record: record
-            });
-          } catch (dbErr) {
-            // COMPENSAÇÃO (BR-AUD-01): Se o banco falhar, removemos do S3
-            await S3Service.rollbackObject(s3Key);
-            throw dbErr;
-          }
-
-        } catch (err) {
-          console.error('[HARDENED_FLOW_CRITICAL_FAILURE]', err.message);
-          reject(err);
-        } finally {
-          // BR-S3-01: Zero-Footprint Local
-          if (fs.existsSync(tempPath)) {
-            fs.unlinkSync(tempPath);
-          }
-        }
-      });
-
-      writeStream.on('error', (err) => {
-        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-        reject(err);
-      });
-    });
   }
 
   _drawSection(doc, title) {
