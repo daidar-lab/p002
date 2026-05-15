@@ -14,13 +14,10 @@ import ReportRepository from '../repositories/ReportRepository.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-import S3Service from './S3Service.js';
 
 class ReportService {
   /**
-   * Consolida D1-D7 e gera Snapshot imutável (BR-PDF-01/02)
-   * Agora integrado ao S3 (BR-S3-01/02/03)
-   */
+   
   /**
    * Coleta dados para visualização dinâmica (BR-XX-UI)
    */
@@ -75,7 +72,7 @@ class ReportService {
     const { document: doc, acr, capas, signatures, decision } = data;
 
     const pdfDoc = new PDFDocument({ margin: 50, size: 'A4' });
-    
+
     // Pipe imediato para evitar quebra de conexão (BR-XX-STREAM)
     pdfDoc.pipe(res);
 
@@ -117,18 +114,18 @@ class ReportService {
         acr.data.levels.forEach((why, i) => {
           if (why) {
             pdfDoc.fontSize(9).fillColor('#475569').text(`${i + 1}º Por quê: `, { continued: true })
-                  .fillColor('#000').text(why);
+              .fillColor('#000').text(why);
           }
         });
       } else if (acr?.type === 'ISHIKAWA' && acr.data?.categories) {
         const cats = acr.data.categories;
         const labels = { metodo: 'Método', maquina: 'Máquina', material: 'Material', mao_de_obra: 'Mão de Obra', medida: 'Medida', ambiente: 'Ambiente' };
-        
+
         pdfDoc.fontSize(9);
         Object.entries(cats).forEach(([key, val]) => {
           if (val) {
             pdfDoc.fillColor('#475569').text(`${labels[key] || key}: `, { continued: true })
-                  .fillColor('#000').text(val);
+              .fillColor('#000').text(val);
           }
         });
       }
@@ -145,7 +142,7 @@ class ReportService {
         pdfDoc.fillColor('#000').font('Helvetica-Bold').fontSize(10).text(`[${capa.type}] ${capa.description}`, 55);
         pdfDoc.font('Helvetica').fontSize(9).text(`Responsável: ${capa.responsible} | Prazo: ${new Date(capa.due_date).toLocaleDateString()}`);
         pdfDoc.fontSize(8).fillColor('#64748b').text(`Critério de Eficácia: ${capa.efficacy_criteria}`);
-        
+
         // Detalhamento de Evidências Submetidas
         if (capa.evidences && capa.evidences.length > 0) {
           pdfDoc.moveDown(0.2);

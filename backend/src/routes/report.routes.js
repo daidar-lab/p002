@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import ReportService from '../services/ReportService.js';
 import ReportRepository from '../repositories/ReportRepository.js';
-import S3Service from '../services/S3Service.js';
+
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,7 +30,7 @@ router.get('/data/:documentId', async (req, res) => {
 router.get('/pdf/:documentId', async (req, res) => {
   try {
     const documentId = Number(req.params.documentId);
-    
+
     // Configura headers para download de PDF
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=8D_Report_${documentId}.pdf`);

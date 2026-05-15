@@ -6,9 +6,9 @@ const router = Router();
 
 router.use(verifyToken);
 
-router.get('/', async (_req, res) => {
-  const result = await SupplierService.listAll();
-  res.json(result.data ?? result);
+router.get('/', async (req, res) => {
+  const result = await SupplierService.listAll(req.query);
+  res.json(result);
 });
 
 router.post('/', async (req, res) => {

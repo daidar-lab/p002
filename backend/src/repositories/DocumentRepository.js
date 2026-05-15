@@ -1,8 +1,10 @@
 import pool from '../config/db.js';
 
 class DocumentRepository {
-  async getAllWithSuppliers() {
-    const query = `
+  async getAllWithSuppliers(filters = {}) {
+    const { limit = 20, offset = 0, search = '' } = filters;
+    const values = [];
+    let query = `
       SELECT
         d.id,
         d.code,
@@ -16,13 +18,23 @@ class DocumentRepository {
         s.name   AS supplier_name,
         s.email  AS supplier_email,
         d.created_at,
-        d.updated_at
+        d.updated_at,
+        COUNT(*) OVER() as total_count
       FROM audit_quality.documents d
       LEFT JOIN audit_quality.suppliers s ON d.supplier_id = s.id
-      ORDER BY d.created_at DESC
+      WHERE 1=1
     `;
+
+    if (search) {
+      values.push(`%${search}%`);
+      query += ` AND (d.code ILIKE $${values.length} OR s.name ILIKE $${values.length})`;
+    }
+
+    query += ` ORDER BY d.created_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
+    values.push(limit, offset);
+
     try {
-      const result = await pool.query(query);
+      const result = await pool.query(query, values);
       return result.rows;
     } catch (error) {
       console.error('Erro ao buscar documentos:', error.message);

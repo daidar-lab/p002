@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../utils/api';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Pagination } from '../../components/Pagination.jsx';
 
 const STATUS_LABELS = {
   'DRAFT': 'Rascunho',
@@ -38,17 +39,15 @@ export default function RHEList() {
   const fetchRhes = async () => {
     setLoading(true);
     try {
-      const offset = (page - 1) * limit;
-      const params = new URLSearchParams({
+      const res = await api.listRhes({
         phase: queryPhase,
+        page,
         limit,
-        offset,
         supplier: filters.supplier,
         status: filters.status
       });
-      const data = await api.get(`/rhes?${params.toString()}`);
-      setRhes(data);
-      setTotal(data[0]?.total_count || 0);
+      setRhes(res.data);
+      setTotal(res.total);
     } catch (err) {
       console.error(err);
     } finally {
@@ -150,28 +149,12 @@ export default function RHEList() {
               </tbody>
             </table>
 
-            {total > limit && (
-              <div className="flex justify-between items-center" style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border)' }}>
-                <span className="text-sub" style={{ fontSize: '12px' }}>Total: {total} registros</span>
-                <div className="flex gap-2">
-                  <button 
-                    className="btn-ghost btn-small" 
-                    disabled={page === 1} 
-                    onClick={() => setPage(p => p - 1)}
-                  >
-                    Anterior
-                  </button>
-                  <span style={{ alignSelf: 'center', fontSize: '13px' }}>Página {page}</span>
-                  <button 
-                    className="btn-ghost btn-small" 
-                    disabled={page * limit >= total} 
-                    onClick={() => setPage(p => p + 1)}
-                  >
-                    Próxima
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination 
+              currentPage={page} 
+              totalItems={total} 
+              itemsPerPage={limit} 
+              onPageChange={setPage} 
+            />
           </>
         )}
       </div>

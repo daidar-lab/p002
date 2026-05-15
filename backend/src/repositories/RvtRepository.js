@@ -32,22 +32,31 @@ class RvtRepository {
   }
 
   async getAll(filters = {}) {
+    const { limit = 20, offset = 0, search = '', supplier_id, status } = filters;
+    const params = [];
     let query = `
-      SELECT r.*, s.name as supplier_name
+      SELECT r.*, s.name as supplier_name, COUNT(*) OVER() as total_count
       FROM audit_quality.rvts r
       JOIN audit_quality.suppliers s ON r.supplier_id = s.id
       WHERE 1=1
     `;
-    const params = [];
-    if (filters.supplier_id) {
-      params.push(filters.supplier_id);
+
+    if (supplier_id) {
+      params.push(supplier_id);
       query += ` AND r.supplier_id = $${params.length}`;
     }
-    if (filters.status) {
-      params.push(filters.status);
+    if (status) {
+      params.push(status);
       query += ` AND r.status = $${params.length}`;
     }
-    query += ' ORDER BY r.created_at DESC';
+    if (search) {
+      params.push(`%${search}%`);
+      query += ` AND (r.code ILIKE $${params.length} OR s.name ILIKE $${params.length})`;
+    }
+
+    query += ` ORDER BY r.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(limit, offset);
+
     const result = await pool.query(query, params);
     return result.rows;
   }

@@ -54,7 +54,10 @@ export const api = {
   deleteUser: (id) => req('DELETE', `/users/${id}`),
 
   // Documents
-  getDocuments: () => req('GET', '/documents'),
+  getDocuments: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return req('GET', `/documents?${q}`);
+  },
   createDocument: (b) => req('POST', '/documents', b),
   updateDocument: (id, b) => req('PUT', `/documents/${id}`, b),
   deleteDocument: (id) => req('DELETE', `/documents/${id}`),
@@ -70,6 +73,10 @@ export const api = {
     req('POST', `/signatures/${docId}/sign`, { role }),
 
   // RHE
+  listRhes: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return req('GET', `/rhes?${q}`);
+  },
   patchRheContent: (id, body) => req('PATCH', `/rhes/${id}/content`, body),
   postRhePhoto: (id, body) => req('POST', `/rhes/${id}/photos`, body),
   patchRhePhotoDescription: (photoId, descricao) => req('PATCH', `/rhes/photos/${photoId}`, { descricao }),
@@ -79,8 +86,17 @@ export const api = {
   getRheSignaturesPending: () => req('GET', '/signatures/pending/rhe'),
   signRhe: (id, role) => req('POST', `/signatures/${id}/sign`, { role, type: 'RHE' }),
 
+  // RVT
+  listRvts: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return req('GET', `/rvt?${q}`);
+  },
+
   // Suppliers
-  getSuppliers: () => req('GET', '/suppliers'),
+  getSuppliers: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return req('GET', `/suppliers?${q}`);
+  },
   createSupplier: (b) => req('POST', '/suppliers', b),
   updateSupplier: (id, b) =>
     req('PUT', `/suppliers/${id}`, b),

@@ -561,8 +561,19 @@ class RheService {
     return this.composeDetailFromRow(row);
   }
 
-  async listRhes(filters = {}) {
-    return await RheRepository.list(filters);
+  async listRhes(params = {}) {
+    const { page = 1, limit = 20, search = '', phase, status } = params;
+    const offset = (page - 1) * limit;
+
+    const rows = await RheRepository.list({ phase, status, supplier: search, limit, offset });
+    const total = rows.length > 0 ? parseInt(rows[0].total_count) : 0;
+
+    return {
+      data: rows,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    };
   }
 
   async getPendingByUser(userId, role) {

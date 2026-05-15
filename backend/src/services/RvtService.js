@@ -4,8 +4,19 @@ import MailService from './MailService.js';
 import pool from '../config/db.js';
 
 class RvtService {
-  async list(filters) {
-    return await RvtRepository.getAll(filters);
+  async list(params = {}) {
+    const { page = 1, limit = 20, search = '', supplier_id, status } = params;
+    const offset = (page - 1) * limit;
+
+    const rows = await RvtRepository.getAll({ limit, offset, search, supplier_id, status });
+    const total = rows.length > 0 ? parseInt(rows[0].total_count) : 0;
+
+    return {
+      data: rows,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    };
   }
 
   async getDetail(id) {

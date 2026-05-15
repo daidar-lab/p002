@@ -1,14 +1,37 @@
 import pool from '../config/db.js';
 
 class SupplierService {
-  async listAll() {
+  async listAll(params = {}) {
+    const { page = 1, limit = 20, search = '' } = params;
+    const offset = (page - 1) * limit;
+    const values = [];
+    
+    let query = `
+      SELECT id, name, cnpj, contact_name, email, active, created_at,
+             COUNT(*) OVER() as total_count
+      FROM audit_quality.suppliers
+      WHERE 1=1
+    `;
+
+    if (search) {
+      values.push(`%${search}%`);
+      query += ` AND (name ILIKE $${values.length} OR cnpj ILIKE $${values.length})`;
+    }
+
+    query += ` ORDER BY name ASC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
+    values.push(limit, offset);
+
     try {
-      const result = await pool.query(`
-        SELECT id, name, cnpj, contact_name, email, active, created_at
-        FROM audit_quality.suppliers
-        ORDER BY name ASC
-      `);
-      return { data: result.rows };
+      const result = await pool.query(query, values);
+      const rows = result.rows;
+      const total = rows.length > 0 ? parseInt(rows[0].total_count) : 0;
+
+      return { 
+        data: rows,
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit)
+      };
     } catch (err) {
       return this._handleDbError(err);
     }

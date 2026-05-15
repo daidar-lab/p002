@@ -119,7 +119,7 @@ export default function Dashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ background: '#fee2e2', padding: '1rem', borderRadius: '8px', borderLeft: '4px solid #ef4444' }}>
                   <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#b91c1c' }}>{stats.delayedCount}</span>
-                  <p style={{ fontSize: '14px', color: '#7f1d1d', marginTop: '4px' }}>NCs com atraso de resposta (> 10 dias úteis)</p>
+                  <p style={{ fontSize: '14px', color: '#7f1d1d', marginTop: '4px' }}>NCs com atraso de resposta (&gt; 10 dias úteis)</p>
                 </div>
 
                 <div className="dash-type-list">

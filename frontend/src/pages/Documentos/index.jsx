@@ -7,6 +7,7 @@ import ConfirmModal from '../../components/ConfirmModal.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
 import { TypeBadge, StatusBadge } from '../../components/Badge.jsx';
 import { toast } from '../../components/Toast.jsx';
+import { Pagination } from '../../components/Pagination.jsx';
 
 const EMPTY_FORM = {
   code: '', type: 'RNC', supplier_id: '',
@@ -34,7 +35,10 @@ const getSLAStatus = (sentDate) => {
 
 export default function Documentos() {
   const { user } = useAuth();
-  const { documents, loading, error, addDocument, updateDocument, deleteDocument } = useDocumentos();
+  const { 
+    documents, total, page, limit, loading, error, 
+    reload, addDocument, updateDocument, deleteDocument 
+  } = useDocumentos();
   const { suppliers } = useFornecedores();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -51,6 +55,15 @@ export default function Documentos() {
   const [filterType, setFilterType]     = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [search, setSearch]             = useState('');
+
+  // Sincroniza busca com o servidor
+  React.useEffect(() => {
+    reload({ page: 1, limit, search, type: filterType, status: filterStatus });
+  }, [search, filterType, filterStatus, reload, limit]);
+
+  const onPageChange = (p) => {
+    reload({ page: p, limit, search, type: filterType, status: filterStatus });
+  };
 
   const openNew = () => { setEditing(null); setForm(EMPTY_FORM); setDrawerOpen(true); };
 
@@ -188,18 +201,6 @@ export default function Documentos() {
     }
   };
 
-  const filtered = documents.filter(d => {
-    if (filterType   && d.type   !== filterType)   return false;
-    if (filterStatus && d.status !== filterStatus)  return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (!d.code.toLowerCase().includes(q) &&
-          !(d.item_description || '').toLowerCase().includes(q) &&
-          !(d.supplier_name    || '').toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
-
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   return (
@@ -207,7 +208,7 @@ export default function Documentos() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Documentos</h1>
-          <p className="page-subtitle">{documents.length} registro{documents.length !== 1 ? 's' : ''}</p>
+          <p className="page-subtitle">{total} registro{total !== 1 ? 's' : ''}</p>
         </div>
         <button className="btn-primary" onClick={openNew}>+ Novo Documento</button>
       </div>
@@ -236,58 +237,67 @@ export default function Documentos() {
       <div className="card table-card">
         {loading ? (
           <p className="loading-text">Carregando...</p>
-        ) : filtered.length === 0 ? (
+        ) : documents.length === 0 ? (
           <EmptyState icon="" title="Nenhum documento encontrado"
             description="Ajuste os filtros ou crie um novo documento."
             action={<button className="btn-primary" onClick={openNew}>+ Novo Documento</button>} />
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Código</th><th>Tipo</th><th>Fornecedor</th>
-                <th>Descrição</th><th>Severidade</th><th>Status</th>
-                <th>Data</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(d => (
-                <tr key={d.id}>
-                  <td className="mono">{d.code}</td>
-                  <td><TypeBadge type={d.type} /></td>
-                  <td>{d.supplier_name || <span className="text-sub">—</span>}</td>
-                  <td className="td-desc">{d.item_description}</td>
-                  <td>
-                    {d.type === 'RNC' ? (
-                      <span className={`badge badge--gut-${(d.severity || 'LOW').toLowerCase()}`}>
-                        {d.severity}
-                      </span>
-                    ) : <span className="text-sub">—</span>}
-                    {d.status === 'ENVIADO_FORNECEDOR' && d.sent_to_supplier_at && (
-                      <div style={{ marginTop: '4px' }}>
-                        {getSLAStatus(d.sent_to_supplier_at) === 'ATRASADO' ? (
-                          <span style={{ fontSize: '10px', background: '#fee2e2', color: '#b91c1c', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>ATRASADO</span>
-                        ) : (
-                          <span style={{ fontSize: '10px', background: '#dcfce7', color: '#15803d', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>EM PRAZO</span>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td><StatusBadge status={d.status} /></td>
-                    <td className="text-sub">{new Date(d.created_at).toLocaleDateString('pt-BR')}</td>
-                      <td className="td-actions">
-                        {d.type === 'RNC' && d.status === 'CONCLUIDO' && (
-                          <button className="btn-icon" title="Relatório 8D (Visualização/Download)" 
-                            disabled={loading8D}
-                            onClick={() => open8D(d.id)}>{loading8D ? '...' : '8D'}</button>
-                        )}
-                        <button className="btn-icon" title="Editar" onClick={() => openEdit(d)}>✏️</button>
-                      <button className="btn-icon btn-icon--danger" title="Excluir"
-                        onClick={() => setConfirmId(d.id)}>🗑</button>
+          <>
+            <table>
+              <thead>
+                <tr>
+                  <th>Código</th><th>Tipo</th><th>Fornecedor</th>
+                  <th>Descrição</th><th>Severidade</th><th>Status</th>
+                  <th>Data</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {documents.map(d => (
+                  <tr key={d.id}>
+                    <td className="mono">{d.code}</td>
+                    <td><TypeBadge type={d.type} /></td>
+                    <td>{d.supplier_name || <span className="text-sub">—</span>}</td>
+                    <td className="td-desc">{d.item_description}</td>
+                    <td>
+                      {d.type === 'RNC' ? (
+                        <span className={`badge badge--gut-${(d.severity || 'LOW').toLowerCase()}`}>
+                          {d.severity}
+                        </span>
+                      ) : <span className="text-sub">—</span>}
+                      {d.status === 'ENVIADO_FORNECEDOR' && d.sent_to_supplier_at && (
+                        <div style={{ marginTop: '4px' }}>
+                          {getSLAStatus(d.sent_to_supplier_at) === 'ATRASADO' ? (
+                            <span style={{ fontSize: '10px', background: '#fee2e2', color: '#b91c1c', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>ATRASADO</span>
+                          ) : (
+                            <span style={{ fontSize: '10px', background: '#dcfce7', color: '#15803d', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>EM PRAZO</span>
+                          )}
+                        </div>
+                      )}
                     </td>
-                  </tr>
-                ))}
-              </tbody>
-          </table>
+                    <td><StatusBadge status={d.status} /></td>
+                      <td className="text-sub">{new Date(d.created_at).toLocaleDateString('pt-BR')}</td>
+                        <td className="td-actions">
+                          {d.type === 'RNC' && d.status === 'CONCLUIDO' && (
+                            <button className="btn-icon" title="Relatório 8D (Visualização/Download)" 
+                              disabled={loading8D}
+                              onClick={() => open8D(d.id)}>{loading8D ? '...' : '8D'}</button>
+                          )}
+                          <button className="btn-icon" title="Editar" onClick={() => openEdit(d)}>✏️</button>
+                        <button className="btn-icon btn-icon--danger" title="Excluir"
+                          onClick={() => setConfirmId(d.id)}>🗑</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+            </table>
+            
+            <Pagination 
+              currentPage={page} 
+              totalItems={total} 
+              itemsPerPage={limit} 
+              onPageChange={onPageChange} 
+            />
+          </>
         )}
       </div>
 

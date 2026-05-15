@@ -34,10 +34,10 @@ const verificarSLAsFornecedor = async () => {
     for (const doc of result.rows) {
       const sentDate = new Date(doc.sent_to_supplier_at);
       const lastNotif = doc.last_notification_at ? new Date(doc.last_notification_at) : sentDate;
-      
+
       const calendarDaysSinceSent = Math.floor((now - sentDate) / (1000 * 60 * 60 * 24));
       const calendarDaysSinceLastNotif = Math.floor((now - lastNotif) / (1000 * 60 * 60 * 24));
-      
+
       const businessDaysSinceSent = getBusinessDaysDiff(sentDate, now);
       const isDelayed = businessDaysSinceSent >= 10;
 
@@ -56,7 +56,7 @@ const verificarSLAsFornecedor = async () => {
 
       if (shouldNotify) {
         console.log(`🔔 [SLA] Notificando ${doc.code} (Tipo: ${notificationType}). Dias Úteis: ${businessDaysSinceSent}`);
-        
+
         await client.query('BEGIN');
         try {
           // A. Gera Magic Link para o Portal
@@ -144,7 +144,7 @@ const verificarSLAsRvt = async () => {
     for (const rvt of result.rows) {
       const createdDate = new Date(rvt.created_at);
       const lastNotif = rvt.last_notification_at ? new Date(rvt.last_notification_at) : createdDate;
-      
+
       const calendarDaysSinceLastNotif = Math.floor((now - lastNotif) / (1000 * 60 * 60 * 24));
       const businessDaysSinceCreated = getBusinessDaysDiff(createdDate, now);
       const isDelayed = businessDaysSinceCreated >= 10;
@@ -162,7 +162,7 @@ const verificarSLAsRvt = async () => {
 
       if (shouldNotify) {
         console.log(`🔔 [RVT-SLA] Notificando ${rvt.code}. Dias Úteis: ${businessDaysSinceCreated}`);
-        
+
         await client.query('BEGIN');
         try {
           // A. Gera Magic Link para o Portal

@@ -11,8 +11,8 @@ router.use(verifyToken);
 /* ──────────────────────────────────────────────
  * Listagem e Detalhes
  * ────────────────────────────────────────────── */
-router.get('/', async (_req, res) => {
-  res.json(await DocumentService.listDashboard());
+router.get('/', async (req, res) => {
+  res.json(await DocumentService.listDashboard(req.query));
 });
 
 router.get('/:id', async (req, res) => {

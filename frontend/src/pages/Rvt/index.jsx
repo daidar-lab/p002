@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRvt } from '../../hooks/useRvt.js';
 import { useFornecedores, useDocumentos } from '../../hooks/useData.js';
 import { StatusBadge } from '../../components/Badge.jsx';
+import { Pagination } from '../../components/Pagination.jsx';
 
 export default function Rvt() {
-  const { rvts, loading, createRvt, updateRvt, finalizeRvt } = useRvt();
+  const { rvts, total, page, limit, loading, refresh, createRvt, updateRvt, finalizeRvt } = useRvt();
   const { suppliers } = useFornecedores();
   const { documents } = useDocumentos();
 
   const [selected, setSelected] = useState(null);
   const [activeTab, setActiveTab] = useState('scheduling');
   const [isNew, setIsNew] = useState(false);
+  const [search, setSearch] = useState('');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -25,6 +27,15 @@ export default function Rvt() {
     participants: [],
     links: []
   });
+
+  // Sincroniza busca com o servidor
+  React.useEffect(() => {
+    refresh({ page: 1, limit, search });
+  }, [search, refresh, limit]);
+
+  const onPageChange = (p) => {
+    refresh({ page: p, limit, search });
+  };
 
   const handleOpenDetail = async (rvt) => {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/rvt/${rvt.id}`, {
@@ -95,11 +106,19 @@ export default function Rvt() {
 
       <div className="dash-grid" style={{ gridTemplateColumns: '350px 1fr' }}>
         {/* Listagem */}
-        <aside className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <aside className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '15px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-            <h3 style={{ fontSize: '13px', color: '#64748b' }}>HISTÓRICO DE VISITAS</h3>
+            <h3 style={{ fontSize: '13px', color: '#64748b', marginBottom: '10px' }}>HISTÓRICO DE VISITAS</h3>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Buscar..." 
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ padding: '8px', fontSize: '13px' }}
+            />
           </div>
-          <div className="rvt-list" style={{ maxHeight: 'calc(100vh - 250px)', overflowY: 'auto' }}>
+          <div className="rvt-list" style={{ flex: 1, overflowY: 'auto' }}>
             {rvts.map(r => (
               <div key={r.id}
                 className={`rvt-item ${selected?.id === r.id ? 'rvt-item--active' : ''}`}
@@ -115,6 +134,14 @@ export default function Rvt() {
                 </div>
               </div>
             ))}
+          </div>
+          <div style={{ padding: '10px', borderTop: '1px solid #e2e8f0' }}>
+            <Pagination 
+              currentPage={page} 
+              totalItems={total} 
+              itemsPerPage={limit} 
+              onPageChange={onPageChange} 
+            />
           </div>
         </aside>
 

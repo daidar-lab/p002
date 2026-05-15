@@ -8,8 +8,14 @@ import { toast } from '../../components/Toast.jsx';
 
 const EMPTY = { name: '', cnpj: '', contact_name: '', email: '', active: true };
 
+import { Pagination } from '../../components/Pagination.jsx';
+
 export default function Fornecedores() {
-  const { suppliers, loading, error, addSupplier, updateSupplier, deleteSupplier } = useFornecedores();
+  const { 
+    suppliers, total, page, limit, loading, error, 
+    reload, addSupplier, updateSupplier, deleteSupplier 
+  } = useFornecedores();
+  
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing]       = useState(null);
   const [form, setForm]             = useState(EMPTY);
@@ -17,6 +23,15 @@ export default function Fornecedores() {
   const [saving, setSaving]         = useState(false);
   const [search, setSearch]         = useState('');
   const [filterActive, setFilterActive] = useState('');
+
+  // Sincroniza com servidor
+  React.useEffect(() => {
+    reload({ page: 1, limit, search, active: filterActive });
+  }, [search, filterActive, reload, limit]);
+
+  const onPageChange = (p) => {
+    reload({ page: p, limit, search, active: filterActive });
+  };
 
   const openNew = () => { setEditing(null); setForm(EMPTY); setDrawerOpen(true); };
   const openEdit = s => {
@@ -56,16 +71,6 @@ export default function Fornecedores() {
     }
   };
 
-  const filtered = suppliers.filter(s => {
-    if (filterActive === 'true'  && !s.active) return false;
-    if (filterActive === 'false' &&  s.active) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (!s.name.toLowerCase().includes(q) && !(s.cnpj || '').includes(q)) return false;
-    }
-    return true;
-  });
-
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   return (
@@ -74,7 +79,7 @@ export default function Fornecedores() {
         <div>
           <h1 className="page-title">Fornecedores</h1>
           <p className="page-subtitle">
-            {suppliers.filter(s => s.active).length} ativos de {suppliers.length} cadastrados
+            {total} cadastrados
           </p>
         </div>
         <button className="btn-primary" onClick={openNew}>+ Novo Fornecedor</button>
@@ -94,30 +99,39 @@ export default function Fornecedores() {
 
       <div className="card table-card">
         {loading ? <p className="loading-text">Carregando...</p>
-        : filtered.length === 0 ? (
+        : suppliers.length === 0 ? (
           <EmptyState icon="" title="Nenhum fornecedor encontrado"
             action={<button className="btn-primary" onClick={openNew}>+ Novo Fornecedor</button>} />
         ) : (
-          <table>
-            <thead>
-              <tr><th>Razão Social</th><th>CNPJ</th><th>Contato</th><th>E-mail</th><th>Status</th><th></th></tr>
-            </thead>
-            <tbody>
-              {filtered.map(s => (
-                <tr key={s.id}>
-                  <td className="td-name">{s.name}</td>
-                  <td className="mono">{s.cnpj || '—'}</td>
-                  <td>{s.contact_name || '—'}</td>
-                  <td className="text-sub">{s.email || '—'}</td>
-                  <td><ActiveBadge active={s.active} /></td>
-                  <td className="td-actions">
-                    <button className="btn-icon" onClick={() => openEdit(s)}>✏️</button>
-                    <button className="btn-icon btn-icon--danger" onClick={() => setConfirmId(s.id)}>🗑</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            <table>
+              <thead>
+                <tr><th>Razão Social</th><th>CNPJ</th><th>Contato</th><th>E-mail</th><th>Status</th><th></th></tr>
+              </thead>
+              <tbody>
+                {suppliers.map(s => (
+                  <tr key={s.id}>
+                    <td className="td-name">{s.name}</td>
+                    <td className="mono">{s.cnpj || '—'}</td>
+                    <td>{s.contact_name || '—'}</td>
+                    <td className="text-sub">{s.email || '—'}</td>
+                    <td><ActiveBadge active={s.active} /></td>
+                    <td className="td-actions">
+                      <button className="btn-icon" onClick={() => openEdit(s)}>✏️</button>
+                      <button className="btn-icon btn-icon--danger" onClick={() => setConfirmId(s.id)}>🗑</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            <Pagination 
+              currentPage={page} 
+              totalItems={total} 
+              itemsPerPage={limit} 
+              onPageChange={onPageChange} 
+            />
+          </>
         )}
       </div>
 

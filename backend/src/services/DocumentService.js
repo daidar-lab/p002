@@ -9,8 +9,19 @@ import SeverityService from './SeverityService.js';
 import pool from '../config/db.js';
 
 class DocumentService {
-  async listDashboard() {
-    return await DocumentRepository.getAllWithSuppliers();
+  async listDashboard(params = {}) {
+    const { page = 1, limit = 20, search = '' } = params;
+    const offset = (page - 1) * limit;
+
+    const rows = await DocumentRepository.getAllWithSuppliers({ limit, offset, search });
+    const total = rows.length > 0 ? parseInt(rows[0].total_count) : 0;
+
+    return {
+      data: rows,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    };
   }
 
   /**

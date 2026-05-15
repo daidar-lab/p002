@@ -3,15 +3,21 @@ import { api } from '../utils/api.js';
 
 export function useDocumentos() {
   const [documents, setDocuments] = useState([]);
+  const [total, setTotal]         = useState(0);
+  const [page, setPage]           = useState(1);
+  const [limit, setLimit]         = useState(20);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (params = {}) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getDocuments();
-      setDocuments(data);
+      const res = await api.getDocuments(params);
+      setDocuments(res.data);
+      setTotal(res.total);
+      setPage(res.page);
+      setLimit(res.limit);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -19,11 +25,11 @@ export function useDocumentos() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load({ page: 1, limit: 20 }); }, [load]);
 
   const addDocument = async (body) => {
     const doc = await api.createDocument(body);
-    setDocuments(prev => [doc, ...prev]);
+    load({ page, limit }); // Reload to maintain pagination state
     return doc;
   };
 
@@ -35,7 +41,7 @@ export function useDocumentos() {
 
   const deleteDocument = async (id) => {
     await api.deleteDocument(id);
-    setDocuments(prev => prev.filter(d => d.id !== id));
+    load({ page, limit }); // Reload
   };
 
   const patchStatus = async (id, status) => {
@@ -44,21 +50,26 @@ export function useDocumentos() {
     return doc;
   };
 
-  return { documents, loading, error, reload: load, addDocument, updateDocument, deleteDocument, patchStatus };
+  return { documents, total, page, limit, loading, error, reload: load, addDocument, updateDocument, deleteDocument, patchStatus };
 }
 
 export function useFornecedores() {
   const [suppliers, setSuppliers] = useState([]);
+  const [total, setTotal]         = useState(0);
+  const [page, setPage]           = useState(1);
+  const [limit, setLimit]         = useState(20);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (params = {}) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getSuppliers();
-      // SupplierService.listAll() retorna { data: [...] } ou array direto
-      setSuppliers(Array.isArray(data) ? data : data.data ?? []);
+      const res = await api.getSuppliers(params);
+      setSuppliers(res.data);
+      setTotal(res.total);
+      setPage(res.page);
+      setLimit(res.limit);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -66,11 +77,11 @@ export function useFornecedores() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load({ page: 1, limit: 20 }); }, [load]);
 
   const addSupplier = async (body) => {
     const s = await api.createSupplier(body);
-    setSuppliers(prev => [s, ...prev]);
+    load({ page, limit });
     return s;
   };
 
@@ -82,8 +93,8 @@ export function useFornecedores() {
 
   const deleteSupplier = async (id) => {
     await api.deleteSupplier(id);
-    setSuppliers(prev => prev.filter(x => x.id !== id));
+    load({ page, limit });
   };
 
-  return { suppliers, loading, error, reload: load, addSupplier, updateSupplier, deleteSupplier };
+  return { suppliers, total, page, limit, loading, error, reload: load, addSupplier, updateSupplier, deleteSupplier };
 }

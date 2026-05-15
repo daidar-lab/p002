@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = Router();
 
 /**
- * PURGE LOCAL STORAGE (BR-S3-01 Compliance)
+ * PURGE LOCAL STORAGE
  * Remove todos os arquivos locais da pasta /uploads/reports
  * Apenas para Administradores
  */

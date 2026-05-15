@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../utils/api.js';
 import { TypeBadge, StatusBadge } from '../../components/Badge.jsx';
+import { Pagination } from '../../components/Pagination.jsx';
 
 export default function AuditoriaView() {
   const [documents, setDocuments] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const limit = 20;
+  
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,8 +17,9 @@ export default function AuditoriaView() {
   const load = async () => {
     setLoading(true);
     try {
-      const data = await api.getDocuments();
-      setDocuments(data);
+      const res = await api.getDocuments({ page, limit, search });
+      setDocuments(res.data);
+      setTotal(res.total);
     } catch (err) {
       console.error('Erro ao carregar auditoria:', err);
     } finally {
@@ -21,7 +27,7 @@ export default function AuditoriaView() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [page, search]);
 
   const selectDocument = async (doc) => {
     setSelectedDoc(doc);
@@ -33,12 +39,7 @@ export default function AuditoriaView() {
     }
   };
 
-  const filtered = documents.filter(d => 
-    d.code.toLowerCase().includes(search.toLowerCase()) ||
-    (d.supplier_name || '').toLowerCase().includes(search.toLowerCase())
-  );
-
-  if (loading) return <div className="p-8">Carregando centro de auditoria...</div>;
+  if (loading && documents.length === 0) return <div className="p-8">Carregando centro de auditoria...</div>;
 
   return (
     <div className="page-container" style={{ display: 'grid', gridTemplateColumns: selectedDoc ? '400px 1fr' : '1fr', gap: '20px' }}>
@@ -59,7 +60,7 @@ export default function AuditoriaView() {
         </header>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {filtered.map(doc => (
+          {documents.map(doc => (
             <div 
               key={doc.id} 
               className={`nav-item ${selectedDoc?.id === doc.id ? 'nav-item--active' : ''}`}
@@ -74,6 +75,13 @@ export default function AuditoriaView() {
               <div style={{ marginTop: 8 }}><StatusBadge status={doc.status} /></div>
             </div>
           ))}
+          
+          <Pagination 
+            currentPage={page} 
+            totalItems={total} 
+            itemsPerPage={limit} 
+            onPageChange={setPage} 
+          />
         </div>
       </div>
 
