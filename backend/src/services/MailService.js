@@ -211,6 +211,20 @@ class MailService {
       triggered_by: 'sistema'
     });
   }
+  async sendRheResult({ rhe_code, supplier_email, supplier_name, decision, phase }) {
+    const resultText = decision === 'APPROVE' ? 'APROVADA' : 'REPROVADA';
+    const phaseText = phase === 'INITIAL' ? 'Inicial' : 'Final';
+    const subject = `Resultado da Homologação (RHE): ${rhe_code} — ${resultText}`;
+    
+    const text = `Olá ${supplier_name || 'Fornecedor'},\n\nComunicamos que o processo de homologação ${rhe_code} (${phaseText}) foi finalizado com o resultado: ${resultText}.\n\nPor favor, verifique os detalhes no sistema ou entre em contato com o departamento de Qualidade para mais informações.\n\nAtenciosamente,\nGestão de Qualidade - Cidade Imperial`;
+
+    return this.send({
+      to: supplier_email,
+      subject,
+      text,
+      triggered_by: 'sistema'
+    });
+  }
 }
 
 export default new MailService();

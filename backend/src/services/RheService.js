@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pool from '../config/db.js';
 import RheRepository from '../repositories/RheRepository.js';
+import MailService from './MailService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_RHE_ROOT = path.join(__dirname, '../../uploads/rhe');
@@ -68,14 +69,7 @@ function mapParecerFinalStatus(status) {
 }
 
 function pickNumeroRhe(row) {
-  const n = firstDefined(row, ['numero_rhe', 'numero', 'rhe_numero']);
-  if (n != null) return typeof n === 'number' ? n : parseInt(String(n), 10) || null;
-  const code = row.code;
-  if (typeof code === 'string') {
-    const m = code.match(/(\d+)\s*$/);
-    if (m) return parseInt(m[1], 10);
-  }
-  return null;
+  return firstDefined(row, ['numero_rhe', 'numero', 'rhe_numero']) ?? null;
 }
 
 function pickMes(row) {
@@ -151,6 +145,7 @@ function buildRheViewDto(row, photoRows = []) {
     data_teste: toDateString(firstDefined(row, ['data_teste'])),
     linha_teste: firstDefined(row, ['linha_teste']) ?? null,
     observacoes_tecnicas: normalizeObservacoesTecnicas(row),
+    parametros_recebimento_url: row.parametros_recebimento_url ?? null,
     fotos: (photoRows || []).map(mapPhotoRow)
   };
 
@@ -158,14 +153,15 @@ function buildRheViewDto(row, photoRows = []) {
   const proximaFase = firstDefined(row, ['proxima_fase']);
   const qtdReq = firstDefined(row, ['quantidade_requerida_kg', 'quantidade_requerida']);
   const conclusao =
-    resumo != null || proximaFase != null || qtdReq != null
+    resumo != null || proximaFase != null || qtdReq != null || row.conclusao_data != null
       ? {
           resumo: resumo ?? null,
           proxima_fase: proximaFase ?? null,
           quantidade_requerida_kg:
             qtdReq != null
               ? (typeof qtdReq === 'number' ? qtdReq : parseFloat(String(qtdReq).replace(',', '.')) || null)
-              : null
+              : null,
+          data: toDateString(row.conclusao_data)
         }
       : null;
 
@@ -200,7 +196,8 @@ function flattenRheBodyToColumns(body) {
       'numero_rhe',
       'titulo',
       'tipo_homologacao',
-      'linha_envase'
+      'linha_envase',
+      'data_emissao'
     ];
     for (const k of keys) {
       if (i[k] !== undefined) u[k] = i[k];
@@ -225,13 +222,15 @@ function flattenRheBodyToColumns(body) {
   if (body.resultados) {
     const r = body.resultados;
     if (r.descricao !== undefined) u.resultados_descricao = r.descricao;
-    if (r.data_recebimento !== undefined) u.data_recebimento = r.data_recebimento;
-    if (r.data_teste !== undefined) u.data_teste = r.data_teste;
-    if (r.linha_teste !== undefined) u.linha_teste = r.linha_teste;
+    
+    // Converte strings vazias em null para evitar erro em colunas DATE/INT do Postgres
+    const toNull = (v) => (v === '' || v == null ? null : v);
+    
+    if (r.data_recebimento !== undefined) u.data_recebimento = toNull(r.data_recebimento);
+    if (r.data_teste !== undefined) u.data_teste = toNull(r.data_teste);
+    if (r.linha_teste !== undefined) u.linha_teste = toNull(r.linha_teste);
     if (r.observacoes_tecnicas !== undefined) {
-      u.observacoes_tecnicas = Array.isArray(r.observacoes_tecnicas)
-        ? JSON.stringify(r.observacoes_tecnicas)
-        : r.observacoes_tecnicas;
+      u.observacoes_tecnicas = r.observacoes_tecnicas;
     }
   }
   if (body.conclusao) {
@@ -239,6 +238,7 @@ function flattenRheBodyToColumns(body) {
     if (c.resumo !== undefined) u.conclusao_resumo = c.resumo;
     if (c.proxima_fase !== undefined) u.proxima_fase = c.proxima_fase;
     if (c.quantidade_requerida_kg !== undefined) u.quantidade_requerida_kg = c.quantidade_requerida_kg;
+    if (c.data !== undefined) u.conclusao_data = c.data === '' ? null : c.data;
   }
   return u;
 }
@@ -260,6 +260,7 @@ class RheService {
    * BR-01: Criação de RHE (Fase Inicial ou Final)
    */
   async createRhe(data, userId) {
+    // Herança e Automação de Números (BR-04)
     if (data.phase === 'FINAL') {
       if (!data.related_initial_rhe_id) {
         throw new Error('Invariante BR-02: RHE_FINAL exige um RHE_INICIAL aprovado.');
@@ -270,59 +271,75 @@ class RheService {
         throw new Error('Fail Condition: RHE_INICIAL deve estar aprovado para iniciar a fase final.');
       }
 
-      if (initialRhe.supplier_id !== data.supplier_id || initialRhe.object_type !== data.object_type) {
-        throw new Error('Fail Condition: O objeto homologado deve ser imutável entre fases.');
-      }
-
-      // Herança de Dados (BR-03): Copia campos da fase inicial
+      // Herança de Dados de Identificação (Imutáveis)
       data.unidade = initialRhe.unidade;
       data.linha_envase = initialRhe.linha_envase;
       data.production_line = initialRhe.production_line;
+      data.numero_rhe = initialRhe.numero_rhe;
+      data.mes = initialRhe.mes;
+      data.ano = initialRhe.ano;
+      data.codigo_formulario = initialRhe.codigo_formulario;
+      data.data_emissao = initialRhe.data_emissao;
+      
+      // Herança de Dados do Produto
       data.embalagem = initialRhe.embalagem;
       data.produto = initialRhe.produto;
       data.fornecedor = initialRhe.fornecedor;
+      data.supplier_id = initialRhe.supplier_id;
+      data.object_type = initialRhe.object_type;
       data.data_fabricacao = initialRhe.data_fabricacao;
       data.validade = initialRhe.validade;
       data.lote = initialRhe.lote;
       data.quantidade_recebida_kg = initialRhe.quantidade_recebida_kg;
       data.nota_fiscal = initialRhe.nota_fiscal;
       data.versao = initialRhe.versao;
+      data.parametros_recebimento_url = initialRhe.parametros_recebimento_url;
+
+      // Herança de Resultados (BR-05): Na fase final, os resultados da inicial são mantidos
+      data.resultados_descricao = initialRhe.resultados_descricao;
+      data.data_recebimento = initialRhe.data_recebimento;
+      data.data_teste = initialRhe.data_teste;
+      data.linha_teste = initialRhe.linha_teste;
+      data.observacoes_tecnicas = initialRhe.observacoes_tecnicas;
+    } else {
+      // Geração de Número para Fase INITIAL
+      // Formato: RHE + MM + YY + Seq
+      const now = data.data_emissao ? new Date(data.data_emissao + 'T12:00:00') : new Date();
+      const mesStr = String(now.getMonth() + 1).padStart(2, '0');
+      const anoStr = String(now.getFullYear()).slice(-2);
+      
+      const countRes = await pool.query(`SELECT COUNT(*) as total FROM audit_quality.rhes WHERE phase = 'INITIAL'`);
+      const nextSeq = parseInt(countRes.rows[0].total || 0, 10) + 1;
+      
+      data.numero_rhe = `RHE${mesStr}${anoStr}${nextSeq}`;
+      data.mes = now.getMonth() + 1;
+      data.ano = Number(anoStr);
+
+      // Sincroniza o nome do fornecedor do cadastro com o campo de texto do formulário (BR-06)
+      if (data.supplier_id) {
+        const supRes = await pool.query(`SELECT name FROM audit_quality.suppliers WHERE id = $1`, [data.supplier_id]);
+        if (supRes.rows[0]) {
+          data.fornecedor = supRes.rows[0].name;
+        }
+      }
     }
 
-    // Automação: Título e Tipo baseados na fase
-    const isInitial = data.phase === 'INITIAL';
-    const autoTitle = isInitial ? 'Homologação Inicial' : 'Homologação Final';
-    const autoType = autoTitle;
-
-    // Gerar número automático global (sempre +1 da última)
-    const lastNumQuery = `SELECT MAX(numero_rhe) as last_num FROM audit_quality.rhes`;
-    const lastNumRes = await pool.query(lastNumQuery);
-    const nextNum = (lastNumRes.rows[0].last_num || 0) + 1;
-
-    // Mes/Ano iniciais baseados em "agora" (serão sobrescritos se data_emissao mudar no front)
-    const now = new Date();
-    const mes = now.getMonth() + 1;
-    const ano = Number(String(now.getFullYear()).slice(-2));
+    const autoTitle = data.phase === 'INITIAL' ? 'Homologação Inicial' : 'Homologação Final';
+    data.titulo = autoTitle;
+    data.tipo_homologacao = autoTitle;
 
     const rhe = await RheRepository.create({
       ...data,
-      titulo: autoTitle,
-      tipo_homologacao: autoType,
-      mes,
-      ano,
-      numero_rhe: nextNum,
       created_by: userId
     });
 
-    // Código formulário baseado no ID (como solicitado)
-    await RheRepository.patchRhe(rhe.id, {
-      codigo_formulario: String(rhe.id).slice(0, 8).toUpperCase(), // Usando parte do UUID para o código
-      titulo: autoTitle,
-      tipo_homologacao: autoType,
-      mes,
-      ano,
-      numero_rhe: nextNum
-    });
+    // Se for fase final, também herda o checklist da fase inicial
+    if (data.phase === 'FINAL' && data.related_initial_rhe_id) {
+      const initialItems = await RheRepository.getChecklist(data.related_initial_rhe_id);
+      if (initialItems.length > 0) {
+        await RheRepository.saveChecklist(rhe.id, initialItems);
+      }
+    }
 
     return rhe;
   }
@@ -449,7 +466,11 @@ class RheService {
       after.some((s) => s.role === r && s.status === 'SIGNED')
     );
     if (allSigned) {
-      await RheRepository.updateStatus(rheId, 'FINAL_APPROVED', userId);
+      const finalStatus = rhe.gate_decision === 'APPROVE' ? 'FINAL_APPROVED' : 'REPROVED';
+      await RheRepository.updateStatus(rheId, finalStatus, userId);
+      
+      // Notifica fornecedor (BR-MAIL-RHE)
+      await this.notifySupplierResult(rheId, rhe.gate_decision);
     }
 
     const row = await RheRepository.getById(rheId);
@@ -478,26 +499,25 @@ class RheService {
       throw new Error('Fail Condition: Checklist incompleto bloqueia o gate.');
     }
 
-    let nextStatus = '';
+    let nextStatus;
     if (decision === 'APPROVE') {
-      if (rhe.phase === 'INITIAL') {
-        nextStatus = 'INITIAL_APPROVED';
-      } else {
-        nextStatus = 'UNDER_REVIEW';
-      }
+      nextStatus = rhe.phase === 'INITIAL' ? 'INITIAL_APPROVED' : 'UNDER_REVIEW';
     } else {
-      nextStatus = 'REPROVED';
+      nextStatus = rhe.phase === 'INITIAL' ? 'REPROVED' : 'UNDER_REVIEW';
     }
 
-    await RheRepository.updateStatus(rheId, nextStatus, userId);
+    await RheRepository.executeGateUpdate(rheId, nextStatus, decision, userId);
 
-    if (decision === 'APPROVE' && rhe.phase === 'FINAL') {
+    if (rhe.phase === 'FINAL') {
       try {
         await RheRepository.dispatchRheSignatures(rheId, RHE_SIGNATURE_ROLES);
       } catch (err) {
         console.error('[RHE] dispatch assinaturas:', err.message);
         throw err;
       }
+    } else if (rhe.phase === 'INITIAL') {
+      // Fase inicial não tem assinaturas paralelas, notifica direto (BR-MAIL-RHE)
+      await this.notifySupplierResult(rheId, decision);
     }
 
     const row = await RheRepository.getById(rheId);
@@ -535,12 +555,43 @@ class RheService {
     return this.composeDetailFromRow(row);
   }
 
+  async getRheByNumber(number) {
+    const row = await RheRepository.getByNumber(number);
+    if (!row) return null;
+    return this.composeDetailFromRow(row);
+  }
+
   async listRhes(filters = {}) {
     return await RheRepository.list(filters);
   }
 
   async getPendingByUser(userId, role) {
     return await RheRepository.getPendingByRole(role);
+  }
+
+  async notifySupplierResult(rheId, decision) {
+    try {
+      const rhe = await RheRepository.getById(rheId);
+      if (!rhe || !rhe.supplier_id) return;
+
+      const supRes = await pool.query(
+        `SELECT name, email FROM audit_quality.suppliers WHERE id = $1`,
+        [rhe.supplier_id]
+      );
+      const supplier = supRes.rows[0];
+      
+      if (supplier && supplier.email) {
+        await MailService.sendRheResult({
+          rhe_code: rhe.numero_rhe,
+          supplier_email: supplier.email,
+          supplier_name: supplier.name,
+          decision,
+          phase: rhe.phase
+        });
+      }
+    } catch (err) {
+      console.error('[RHE] Falha ao notificar fornecedor:', err.message);
+    }
   }
 }
 

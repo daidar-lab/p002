@@ -130,6 +130,16 @@ router.post('/:id/gate', async (req, res) => {
   }
 });
 
+router.get('/by-number/:number', async (req, res) => {
+  try {
+    const detail = await RheService.getRheByNumber(req.params.number);
+    if (!detail) return res.status(404).json({ error: 'RHE não encontrado.' });
+    res.json(detail);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /**
  * Detalhe de um RHE específico (inclui checklist, assinaturas e DTO rhe)
  */

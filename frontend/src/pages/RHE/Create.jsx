@@ -35,10 +35,21 @@ export default function RHECreate() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Hardening: Converte strings vazias em null para satisfazer o Postgres (UUID)
+      let finalRelatedId = form.related_initial_rhe_id || null;
+
+      // Segurança: Se o ID ainda for o número amigável (RHE...), busca o UUID real
+      if (finalRelatedId && String(finalRelatedId).startsWith('RHE')) {
+        try {
+          const initial = await api.get(`/rhes/by-number/${finalRelatedId}`);
+          if (initial) finalRelatedId = initial.id;
+        } catch (e) {
+          throw new Error('Não foi possível validar o número da RHE Inicial.');
+        }
+      }
+
       const payload = {
         ...form,
-        related_initial_rhe_id: form.related_initial_rhe_id || null,
+        related_initial_rhe_id: finalRelatedId,
         supplier_id: form.supplier_id || null,
         packaging_id: form.packaging_id || null
       };
@@ -153,26 +164,35 @@ export default function RHECreate() {
                   value={form.related_initial_rhe_id}
                   onChange={e => setForm({...form, related_initial_rhe_id: e.target.value})}
                   onBlur={async (e) => {
-                    const id = e.target.value;
-                    if (id && id.length > 30) {
-                      try {
-                        const initial = await api.get(`/rhes/${id}`);
-                        if (initial) {
-                          const linha =
-                            initial.production_line ||
-                            initial.rhe?.identificacao?.linha_envase ||
-                            '';
-                          setForm((prev) => ({
-                            ...prev,
-                            object_type: initial.object_type,
-                            supplier_id: initial.supplier_id != null ? String(initial.supplier_id) : '',
-                            packaging_id: initial.packaging_id != null ? String(initial.packaging_id) : '',
-                            production_line: linha
-                          }));
-                        }
-                      } catch (err) {
-                        console.error('Falha ao herdar dados:', err);
+                    const id = e.target.value.trim();
+                    if (!id) return;
+
+                    try {
+                      let initial;
+                      if (id.startsWith('RHE')) {
+                        // Busca por número de RHE
+                        initial = await api.get(`/rhes/by-number/${id}`);
+                      } else if (id.length > 30) {
+                        // Busca por UUID
+                        initial = await api.get(`/rhes/${id}`);
                       }
+
+                      if (initial) {
+                        const linha =
+                          initial.production_line ||
+                          initial.rhe?.identificacao?.linha_envase ||
+                          '';
+                        setForm((prev) => ({
+                          ...prev,
+                          related_initial_rhe_id: initial.id, // Converte o texto (ex: RHE...) para o UUID real para o banco
+                          object_type: initial.object_type,
+                          supplier_id: initial.supplier_id != null ? String(initial.supplier_id) : '',
+                          packaging_id: initial.packaging_id != null ? String(initial.packaging_id) : '',
+                          production_line: linha
+                        }));
+                      }
+                    } catch (err) {
+                      console.error('Falha ao herdar dados:', err);
                     }
                   }}
                   required

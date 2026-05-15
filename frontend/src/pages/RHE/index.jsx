@@ -2,6 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../utils/api';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+const STATUS_LABELS = {
+  'DRAFT': 'Rascunho',
+  'INITIAL_APPROVED': 'Inicial Aprovada',
+  'FINAL_APPROVED': 'Final Aprovada',
+  'UNDER_REVIEW': 'Aguardando Assinaturas',
+  'REPROVED': 'Reprovada'
+};
+
+const OBJECT_TYPE_LABELS = {
+  'SUPPLIER': 'Fornecedor',
+  'PACKAGING': 'Embalagem'
+};
+
 export default function RHEList() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -84,10 +97,9 @@ export default function RHEList() {
           onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))}
         >
           <option value="">Todos os Status</option>
-          <option value="DRAFT">Draft</option>
-          <option value="INITIAL_APPROVED">Inicial Aprovada</option>
-          <option value="FINAL_APPROVED">Final Aprovada</option>
-          <option value="REPROVED">Reprovada</option>
+          {Object.entries(STATUS_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
         </select>
         <button className="btn-secondary" onClick={fetchRhes}>Filtrar</button>
       </div>
@@ -111,11 +123,11 @@ export default function RHEList() {
                 {rhes.map(rhe => (
                   <tr key={rhe.id}>
                     <td className="text-mono text-small">{rhe.id.substring(0, 8)}...</td>
-                    <td>{rhe.object_type}</td>
+                    <td>{OBJECT_TYPE_LABELS[rhe.object_type] || rhe.object_type}</td>
                     <td>{rhe.supplier_name || 'N/A'}</td>
                     <td>
                       <span className={`badge ${getStatusClass(rhe.status)}`}>
-                        {rhe.status}
+                        {STATUS_LABELS[rhe.status] || rhe.status}
                       </span>
                     </td>
                     <td className="text-right">

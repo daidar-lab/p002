@@ -1,17 +1,10 @@
 import pool from '../config/db.js';
 
-/** Colunas permitidas em UPDATE parcial de rhes (sem schema novo). */
 const RHE_PATCHABLE_COLUMNS = new Set([
+  'status',
   'codigo_formulario',
-  'versao',
-  'data_emissao',
-  'unidade',
-  'mes',
-  'ano',
-  'numero_rhe',
   'titulo',
   'tipo_homologacao',
-  'linha_envase',
   'embalagem',
   'produto',
   'fornecedor',
@@ -20,6 +13,14 @@ const RHE_PATCHABLE_COLUMNS = new Set([
   'lote',
   'quantidade_recebida_kg',
   'nota_fiscal',
+  'linha_envase',
+  'versao',
+  'unidade',
+  'mes',
+  'ano',
+  'numero_rhe',
+  'production_line',
+  'data_emissao',
   'resultados_descricao',
   'data_recebimento',
   'data_teste',
@@ -28,8 +29,9 @@ const RHE_PATCHABLE_COLUMNS = new Set([
   'conclusao_resumo',
   'proxima_fase',
   'quantidade_requerida_kg',
-  'production_line',
-  'parametros_recebimento_url'
+  'conclusao_data',
+  'parametros_recebimento_url',
+  'gate_decision'
 ]);
 
 class RheRepository {
@@ -40,8 +42,11 @@ class RheRepository {
         related_initial_rhe_id, created_by, unidade, mes, ano, numero_rhe,
         titulo, tipo_homologacao, embalagem, produto, fornecedor, 
         data_fabricacao, validade, lote, quantidade_recebida_kg, 
-        nota_fiscal, linha_envase, versao
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+        nota_fiscal, linha_envase, versao, codigo_formulario, 
+        data_emissao, resultados_descricao, data_recebimento, data_teste, linha_teste, 
+        observacoes_tecnicas, parametros_recebimento_url, conclusao_resumo,
+        proxima_fase, quantidade_requerida_kg, conclusao_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
       RETURNING *
     `;
     const values = [
@@ -52,7 +57,12 @@ class RheRepository {
       data.embalagem || null, data.produto || null, data.fornecedor || null,
       data.data_fabricacao || null, data.validade || null, data.lote || null,
       data.quantidade_recebida_kg || null, data.nota_fiscal || null,
-      data.linha_envase || null, data.versao || null
+      data.linha_envase || null, data.versao || null, data.codigo_formulario || null,
+      data.data_emissao || null, data.resultados_descricao || null, 
+      data.data_recebimento || null, data.data_teste || null, data.linha_teste || null, 
+      data.observacoes_tecnicas || null, data.parametros_recebimento_url || null,
+      data.conclusao_resumo || null, data.proxima_fase || null, 
+      data.quantidade_requerida_kg || null, data.conclusao_data || null
     ];
     const result = await pool.query(query, values);
     return result.rows[0];
@@ -71,6 +81,21 @@ class RheRepository {
     return result.rows[0];
   }
 
+  async getByNumber(number) {
+    const query = `
+      SELECT r.*, s.name as supplier_name, u.name as creator_name, gu.name as gate_executor_name
+      FROM audit_quality.rhes r
+      LEFT JOIN audit_quality.suppliers s ON s.id = r.supplier_id
+      LEFT JOIN audit_quality.users u ON u.id = r.created_by
+      LEFT JOIN audit_quality.users gu ON gu.id = r.gate_executed_by
+      WHERE r.numero_rhe = $1
+      ORDER BY r.created_at DESC
+      LIMIT 1
+    `;
+    const result = await pool.query(query, [number]);
+    return result.rows[0];
+  }
+
   async updateStatus(id, status, userId) {
     const query = `
       UPDATE audit_quality.rhes 
@@ -79,6 +104,17 @@ class RheRepository {
       RETURNING *
     `;
     const result = await pool.query(query, [status, userId, id]);
+    return result.rows[0];
+  }
+
+  async executeGateUpdate(id, status, decision, userId) {
+    const query = `
+      UPDATE audit_quality.rhes 
+      SET status = $1, gate_decision = $2, gate_executed_by = $3, gate_executed_at = NOW(), updated_at = NOW()
+      WHERE id = $4
+      RETURNING *
+    `;
+    const result = await pool.query(query, [status, decision, userId, id]);
     return result.rows[0];
   }
 
@@ -112,7 +148,6 @@ class RheRepository {
     return result.rows;
   }
 
-  /** Linhas brutas de rhe_photos; o service normaliza nome/url/descricao. */
   async getPhotosByRheId(rheId) {
     const query = `
       SELECT *
@@ -124,9 +159,6 @@ class RheRepository {
     return result.rows;
   }
 
-  /**
-   * INSERT em rhe_photos (colunas comuns; ajuste aliases se o seu DDL usar outros nomes).
-   */
   async insertPhoto({ rhe_id, nome, url, descricao }, client = pool) {
     const query = `
       INSERT INTO audit_quality.rhe_photos (rhe_id, nome, url, descricao)
@@ -166,8 +198,6 @@ class RheRepository {
       WHERE id = $${vals.length}
       RETURNING *
     `;
-    console.log('[RheRepository] patchRhe SQL:', q);
-    console.log('[RheRepository] patchRhe values:', vals);
     const result = await client.query(q, vals);
     if (result.rowCount === 0) return null;
     return this.getById(id);
