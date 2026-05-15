@@ -1,0 +1,1237 @@
+[
+  {
+    "table_name": "audit_logs",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "audit_logs",
+    "column_name": "document_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "audit_logs",
+    "column_name": "action",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "audit_logs",
+    "column_name": "detail",
+    "data_type": "text"
+  },
+  {
+    "table_name": "audit_logs",
+    "column_name": "user_name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "audit_logs",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "audit_logs",
+    "column_name": "rvt_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "capa_evidences",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "capa_evidences",
+    "column_name": "capa_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "capa_evidences",
+    "column_name": "description",
+    "data_type": "text"
+  },
+  {
+    "table_name": "capa_evidences",
+    "column_name": "is_objective",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "capa_evidences",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "capas",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "capas",
+    "column_name": "document_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "capas",
+    "column_name": "type",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "capas",
+    "column_name": "description",
+    "data_type": "text"
+  },
+  {
+    "table_name": "capas",
+    "column_name": "root_cause_link",
+    "data_type": "text"
+  },
+  {
+    "table_name": "capas",
+    "column_name": "responsible",
+    "data_type": "text"
+  },
+  {
+    "table_name": "capas",
+    "column_name": "due_date",
+    "data_type": "date"
+  },
+  {
+    "table_name": "capas",
+    "column_name": "efficacy_criteria",
+    "data_type": "text"
+  },
+  {
+    "table_name": "capas",
+    "column_name": "status",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "capas",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "capas",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "disposition_approvals",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "disposition_approvals",
+    "column_name": "document_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "disposition_approvals",
+    "column_name": "role",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "disposition_approvals",
+    "column_name": "approved_by",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "disposition_approvals",
+    "column_name": "reference_id",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "disposition_approvals",
+    "column_name": "timestamp",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "code",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "type",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "status",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "parent_doc_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "supplier_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "item_description",
+    "data_type": "text"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "defect_category",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "material_disposition",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "disposition_by",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "disposition_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "severity",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "occurrence_context",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "audit_finding_type",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "impact_regulatory",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "impact_customer",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "impact_production",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "evaluation_log",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "sent_to_supplier_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "documents",
+    "column_name": "last_notification_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "efficacy_decisions",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "efficacy_decisions",
+    "column_name": "document_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "efficacy_decisions",
+    "column_name": "decision",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "efficacy_decisions",
+    "column_name": "rules_applied",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "efficacy_decisions",
+    "column_name": "evidence_summary",
+    "data_type": "text"
+  },
+  {
+    "table_name": "efficacy_decisions",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "email_logs",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "email_logs",
+    "column_name": "recipient",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "email_logs",
+    "column_name": "subject",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "email_logs",
+    "column_name": "body",
+    "data_type": "text"
+  },
+  {
+    "table_name": "email_logs",
+    "column_name": "status",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "email_logs",
+    "column_name": "error_msg",
+    "data_type": "text"
+  },
+  {
+    "table_name": "email_logs",
+    "column_name": "document_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "email_logs",
+    "column_name": "triggered_by",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "email_logs",
+    "column_name": "sent_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "generated_documents",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "generated_documents",
+    "column_name": "document_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "generated_documents",
+    "column_name": "decision_uuid",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "generated_documents",
+    "column_name": "file_name",
+    "data_type": "text"
+  },
+  {
+    "table_name": "generated_documents",
+    "column_name": "file_hash",
+    "data_type": "text"
+  },
+  {
+    "table_name": "generated_documents",
+    "column_name": "generated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "generated_documents",
+    "column_name": "created_by",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "kpi_snapshots",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "kpi_snapshots",
+    "column_name": "period_start",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "kpi_snapshots",
+    "column_name": "period_end",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "kpi_snapshots",
+    "column_name": "metrics",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "kpi_snapshots",
+    "column_name": "audit_status",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "kpi_snapshots",
+    "column_name": "audit_log",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "kpi_snapshots",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "kpi_snapshots",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "magic_links",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "magic_links",
+    "column_name": "token_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "magic_links",
+    "column_name": "document_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "magic_links",
+    "column_name": "supplier_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "magic_links",
+    "column_name": "scope",
+    "data_type": "USER-DEFINED"
+  },
+  {
+    "table_name": "magic_links",
+    "column_name": "expires_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "magic_links",
+    "column_name": "used_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "magic_links",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "magic_links",
+    "column_name": "rvt_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "notification_matrix",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "notification_matrix",
+    "column_name": "defect_category",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "notification_matrix",
+    "column_name": "role_name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "notification_matrix",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "notification_matrix",
+    "column_name": "is_active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "notification_matrix",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "process_audits",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "process_audits",
+    "column_name": "audit_type",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "process_audits",
+    "column_name": "period_start",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "process_audits",
+    "column_name": "period_end",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "process_audits",
+    "column_name": "result_snapshot",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "process_audits",
+    "column_name": "executed_by",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "process_audits",
+    "column_name": "generated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rhe_checklists",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rhe_checklists",
+    "column_name": "rhe_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "rhe_checklists",
+    "column_name": "item_id",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rhe_checklists",
+    "column_name": "approved",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "rhe_checklists",
+    "column_name": "evidence_ref",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhe_checklists",
+    "column_name": "comment",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhe_checklists",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rhe_photos",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "rhe_photos",
+    "column_name": "rhe_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "rhe_photos",
+    "column_name": "nome",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhe_photos",
+    "column_name": "url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhe_photos",
+    "column_name": "descricao",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhe_photos",
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "rhe_signatures",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "rhe_signatures",
+    "column_name": "rhe_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "rhe_signatures",
+    "column_name": "role",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhe_signatures",
+    "column_name": "user_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rhe_signatures",
+    "column_name": "signer_name",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhe_signatures",
+    "column_name": "status",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhe_signatures",
+    "column_name": "signed_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "rhe_signatures",
+    "column_name": "signature_hash",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "phase",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "status",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "object_type",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "supplier_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "packaging_id",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "production_line",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "related_initial_rhe_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "created_by",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "gate_executed_by",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "gate_executed_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "codigo_formulario",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "versao",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "data_emissao",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "unidade",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "mes",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "ano",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "numero_rhe",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "titulo",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "tipo_homologacao",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "linha_envase",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "embalagem",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "produto",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "fornecedor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "data_fabricacao",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "validade",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "lote",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "quantidade_recebida_kg",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "nota_fiscal",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "resultados_descricao",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "data_recebimento",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "data_teste",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "linha_teste",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "observacoes_tecnicas",
+    "data_type": "ARRAY"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "conclusao_resumo",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "proxima_fase",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "quantidade_requerida_kg",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "parecer_data",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "rhes",
+    "column_name": "parametros_recebimento_url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "root_cause_analyses",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "root_cause_analyses",
+    "column_name": "document_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "root_cause_analyses",
+    "column_name": "type",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "root_cause_analyses",
+    "column_name": "data",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "root_cause_analyses",
+    "column_name": "root_cause",
+    "data_type": "text"
+  },
+  {
+    "table_name": "root_cause_analyses",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "root_cause_analyses",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rvt_evidences",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rvt_evidences",
+    "column_name": "rvt_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rvt_evidences",
+    "column_name": "url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rvt_evidences",
+    "column_name": "description",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rvt_evidences",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rvt_links",
+    "column_name": "rvt_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rvt_links",
+    "column_name": "document_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rvt_participants",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rvt_participants",
+    "column_name": "rvt_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rvt_participants",
+    "column_name": "name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rvt_participants",
+    "column_name": "company",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rvt_signatures",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rvt_signatures",
+    "column_name": "rvt_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rvt_signatures",
+    "column_name": "role",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rvt_signatures",
+    "column_name": "user_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rvt_signatures",
+    "column_name": "signer_name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rvt_signatures",
+    "column_name": "signed_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rvt_signatures",
+    "column_name": "status",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rvt_signatures",
+    "column_name": "signature_hash",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "code",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "supplier_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "status",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "scheduled_date",
+    "data_type": "date"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "window_start",
+    "data_type": "date"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "window_end",
+    "data_type": "date"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "product_name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "visit_date",
+    "data_type": "date"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "pauta",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "subjects_covered",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "conclusion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "created_by",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "finalized_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "finalized_by",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "rvts",
+    "column_name": "last_notification_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "signature_roles_required",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "signature_roles_required",
+    "column_name": "document_type",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "signature_roles_required",
+    "column_name": "role",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "signatures",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "signatures",
+    "column_name": "document_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "signatures",
+    "column_name": "user_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "signatures",
+    "column_name": "role",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "signatures",
+    "column_name": "decision_uuid",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "signatures",
+    "column_name": "signed_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "signatures",
+    "column_name": "signature_hash",
+    "data_type": "text"
+  },
+  {
+    "table_name": "signatures",
+    "column_name": "status",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "signatures",
+    "column_name": "requested_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "signatures",
+    "column_name": "sla_deadline",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "signatures",
+    "column_name": "escalation_level",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "signatures",
+    "column_name": "state_hash",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "status_history",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "status_history",
+    "column_name": "document_id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "status_history",
+    "column_name": "old_status",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "status_history",
+    "column_name": "new_status",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "status_history",
+    "column_name": "changed_by",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "status_history",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "suppliers",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "suppliers",
+    "column_name": "name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "suppliers",
+    "column_name": "cnpj",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "suppliers",
+    "column_name": "contact_name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "suppliers",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "suppliers",
+    "column_name": "active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "suppliers",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "suppliers",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "users",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "users",
+    "column_name": "username",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "password",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "role",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "users",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  }
+]

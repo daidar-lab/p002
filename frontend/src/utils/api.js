@@ -69,6 +69,16 @@ export const api = {
   signDocument: (docId, role) =>
     req('POST', `/signatures/${docId}/sign`, { role }),
 
+  // RHE
+  patchRheContent: (id, body) => req('PATCH', `/rhes/${id}/content`, body),
+  postRhePhoto: (id, body) => req('POST', `/rhes/${id}/photos`, body),
+  patchRhePhotoDescription: (photoId, descricao) => req('PATCH', `/rhes/photos/${photoId}`, { descricao }),
+  deleteRhePhoto: (photoId) => req('DELETE', `/rhes/photos/${photoId}`),
+  uploadRheParams: (id, body) => req('POST', `/rhes/${id}/params`, body),
+  getRheSignaturesStatus: (id) => req('GET', `/rhes/${id}/signatures/status`),
+  getRheSignaturesPending: () => req('GET', '/signatures/pending/rhe'),
+  signRhe: (id, role) => req('POST', `/signatures/${id}/sign`, { role, type: 'RHE' }),
+
   // Suppliers
   getSuppliers: () => req('GET', '/suppliers'),
   createSupplier: (b) => req('POST', '/suppliers', b),

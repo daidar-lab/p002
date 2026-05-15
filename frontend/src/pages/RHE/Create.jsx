@@ -158,11 +158,16 @@ export default function RHECreate() {
                       try {
                         const initial = await api.get(`/rhes/${id}`);
                         if (initial) {
-                          setForm(prev => ({
+                          const linha =
+                            initial.production_line ||
+                            initial.rhe?.identificacao?.linha_envase ||
+                            '';
+                          setForm((prev) => ({
                             ...prev,
                             object_type: initial.object_type,
-                            supplier_id: initial.supplier_id,
-                            production_line: initial.production_line
+                            supplier_id: initial.supplier_id != null ? String(initial.supplier_id) : '',
+                            packaging_id: initial.packaging_id != null ? String(initial.packaging_id) : '',
+                            production_line: linha
                           }));
                         }
                       } catch (err) {

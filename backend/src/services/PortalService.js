@@ -93,11 +93,14 @@ class PortalService {
     const linkRecord = await this.validateAccess(token);
     
     if (linkRecord.scope === 'EVIDENCE_SUBMISSION') {
-      return await PortalRepository.getPortalViewData(linkRecord.document_id);
+      const data = await PortalRepository.getPortalViewData(linkRecord.document_id);
+      return { ...data, scope: linkRecord.scope };
     }
     
     if (linkRecord.scope === 'RVT_SCHEDULING' || linkRecord.scope === 'RVT_SIGNATURE') {
-      return await PortalRepository.getPortalRvtData(linkRecord.rvt_id);
+      const data = await PortalRepository.getPortalRvtData(linkRecord.rvt_id);
+      if (!data) throw new Error('RVT não encontrado');
+      return { ...data, scope: linkRecord.scope };
     }
 
     throw new Error('Tipo de acesso não suportado');
@@ -108,18 +111,22 @@ class PortalService {
     if (linkRecord.scope !== 'RVT_SCHEDULING') throw new Error('Operação inválida');
 
     const rvt = await PortalRepository.getPortalRvtData(linkRecord.rvt_id);
-    const date = new Date(selectedDate);
     
-    if (date < new Date(rvt.window_start) || date > new Date(rvt.window_end)) {
-      throw new Error('Data fora da janela permitida');
+    // Comparação robusta (considerando apenas a parte da data YYYY-MM-DD)
+    const chosen = new Date(selectedDate).getTime();
+    const start = new Date(rvt.window_start).getTime();
+    const end = new Date(rvt.window_end).getTime();
+    
+    if (chosen < start || chosen > end) {
+      throw new Error(`Data fora da janela permitida (${new Date(rvt.window_start).toLocaleDateString()} a ${new Date(rvt.window_end).toLocaleDateString()})`);
     }
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      
+
       await client.query(
-        "UPDATE audit_quality.rvts SET scheduled_date = $1, visit_date = $1, status = 'AGUARDANDO_EXECUCAO' WHERE id = $2",
+        "UPDATE audit_quality.rvts SET scheduled_date = $1, visit_date = $1, status = 'AGENDADA' WHERE id = $2",
         [selectedDate, linkRecord.rvt_id]
       );
 

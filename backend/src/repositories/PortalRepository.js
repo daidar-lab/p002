@@ -18,9 +18,10 @@ class PortalRepository {
     return result.rows[0] || null;
   }
 
-  async markAsUsed(tokenId) {
+  async markAsUsed(tokenId, client = null) {
     const query = 'UPDATE audit_quality.magic_links SET used_at = NOW() WHERE token_id = $1 RETURNING *';
-    const result = await pool.query(query, [tokenId]);
+    const db = client || pool;
+    const result = await db.query(query, [tokenId]);
     return result.rows[0];
   }
 

@@ -31,7 +31,7 @@ import './index.css';
 const NAV = [
   { to: '/dashboard',    label: 'Dashboard' },
   { to: '/documentos',   label: 'Documentos' },
-  { to: '/assinaturas',  label: 'Assinar RNC' },
+  { to: '/assinaturas',  label: 'Centro de Assinaturas' },
   { to: '/auditoria',    label: 'Centro de Auditoria' },
   { to: '/rhes',         label: 'Homologação (RHE)' },
   { to: '/fornecedores', label: 'Fornecedores' },
@@ -42,6 +42,7 @@ const NAV = [
 function Sidebar() {
   const { user, logout } = useAuth();
   const [rheOpen, setRheOpen] = React.useState(false);
+  const [sigOpen, setSigOpen] = React.useState(false);
 
   return (
     <aside className="sidebar">
@@ -52,8 +53,8 @@ function Sidebar() {
 
       <nav className="sidebar-nav">
         {NAV.map(({ to, label }) => {
-          // Pula RHE aqui para tratar separado
-          if (to === '/rhes') return null;
+          // Pula grupos tratados separadamente
+          if (to === '/rhes' || to === '/assinaturas') return null;
 
           return (
             <NavLink
@@ -67,6 +68,34 @@ function Sidebar() {
             </NavLink>
           );
         })}
+
+        {/* ✍️ Menu Collapsible Assinaturas */}
+        <div className="nav-group">
+          <button 
+            className={`nav-item nav-item--collapsible ${sigOpen ? 'nav-item--open' : ''}`}
+            onClick={() => setSigOpen(!sigOpen)}
+          >
+            <span className="nav-item__label">Assinaturas</span>
+            <span className="nav-group-arrow">{sigOpen ? '▲' : '▼'}</span>
+          </button>
+          
+          {sigOpen && (
+            <div className="nav-sub">
+              <NavLink 
+                to="/assinaturas?type=RNC" 
+                className={({ isActive }) => `nav-sub-item ${isActive ? 'nav-sub-item--active' : ''}`}
+              >
+                RNC
+              </NavLink>
+              <NavLink 
+                to="/assinaturas?type=RHE" 
+                className={({ isActive }) => `nav-sub-item ${isActive ? 'nav-sub-item--active' : ''}`}
+              >
+                RHE (Homologação)
+              </NavLink>
+            </div>
+          )}
+        </div>
 
         {/* 📂 Menu Collapsible RHE */}
         <div className="nav-group">

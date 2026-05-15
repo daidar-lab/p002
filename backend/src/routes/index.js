@@ -14,6 +14,7 @@ import adminRoutes from './admin.routes.js';
 import rheRoutes from './rhe.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import rvtRoutes from './rvt.routes.js';
+import filesRoutes from './files.routes.js';
 
 const router = Router();
 
@@ -31,5 +32,6 @@ router.use('/admin', adminRoutes);
 router.use('/rhes', rheRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/rvt', rvtRoutes);
+router.use('/files', filesRoutes);
 
 export default router;

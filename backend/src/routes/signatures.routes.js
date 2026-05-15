@@ -18,6 +18,16 @@ router.get('/pending', async (req, res) => {
   }
 });
 
+router.get('/pending/rhe', async (req, res) => {
+  try {
+    const RheService = (await import('../services/RheService.js')).default;
+    const result = await RheService.getPendingByUser(req.user.id, req.user.role);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /**
  * Consulta o status das assinaturas de um documento
  */
@@ -32,8 +42,19 @@ router.get('/:documentId/status', async (req, res) => {
 
 router.post('/:documentId/sign', async (req, res) => {
   try {
-    const { role } = req.body;
-    // req.user.id é o identificador único do assinante
+    const { role, type } = req.body; // 'RNC' ou 'RHE'
+    
+    if (type === 'RHE') {
+      const RheService = (await import('../services/RheService.js')).default;
+      const result = await RheService.signRheSignature(
+        req.params.documentId, // No RHE o ID é UUID (string)
+        role,
+        req.user.id,
+        req.user.role
+      );
+      return res.json(result);
+    }
+
     const result = await SignatureService.sign(
       Number(req.params.documentId),
       role,

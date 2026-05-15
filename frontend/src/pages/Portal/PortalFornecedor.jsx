@@ -83,7 +83,10 @@ const PortalFornecedor = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ selectedDate })
       });
-      if (!res.ok) throw new Error('Erro ao agendar data');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Erro ao agendar data');
+      }
       setSuccess(true);
     } catch (err) {
       alert(err.message);
@@ -131,7 +134,7 @@ const PortalFornecedor = () => {
 
       <main className="portal-content">
         {/* FLUXO: SUBMISSÃO DE EVIDÊNCIA (RNC) */}
-        {!data.pauta && !data.visit_date && (
+        {data.scope === 'EVIDENCE_SUBMISSION' && (
           <>
             <section className="info-section">
               <h3>Resumo da Ocorrência</h3>
@@ -208,11 +211,19 @@ const PortalFornecedor = () => {
         )}
 
         {/* FLUXO: AGENDAMENTO DE RVT */}
-        {data.window_start && !data.scheduled_date && (
+        {data.scope === 'RVT_SCHEDULING' && !data.scheduled_date && (
           <section className="form-section">
             <div className="card highlight" style={{ textAlign: 'center' }}>
               <h2>Agendamento de Visita Técnica</h2>
               <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>Selecione uma data disponível dentro da janela acordada.</p>
+
+              {(data.product_name || data.pauta || data.subjects_covered) && (
+                <div style={{ textAlign: 'left', background: '#f8fafc', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
+                  {data.product_name && <p style={{ margin: '0 0 0.5rem' }}><strong>Produto:</strong> {data.product_name}</p>}
+                  {data.pauta && <p style={{ margin: '0 0 0.5rem' }}><strong>Pauta:</strong> {data.pauta}</p>}
+                  {data.subjects_covered && <p style={{ margin: 0 }}><strong>Assuntos / escopo:</strong> {data.subjects_covered}</p>}
+                </div>
+              )}
               
               {data.linked_rncs && data.linked_rncs.length > 0 && (
                 <div style={{ textAlign: 'left', background: '#f1f5f9', padding: '1rem', borderRadius: '8px', marginBottom: '2rem' }}>
@@ -243,7 +254,7 @@ const PortalFornecedor = () => {
         )}
 
         {/* FLUXO: ASSINATURA DE RVT */}
-        {data.status === 'FINALIZADA' && (
+        {data.scope === 'RVT_SIGNATURE' && (
           <section className="form-section">
             <div className="card highlight">
               <h2>Revisão e Assinatura Técnica</h2>

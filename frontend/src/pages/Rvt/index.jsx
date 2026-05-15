@@ -140,20 +140,23 @@ export default function Rvt() {
                     </div>
                     <div className="form-group">
                       <label className="form-label">Produto/Serviço</label>
-                      <input className="form-input" value={formData.product_name} onChange={e => setFormData({ ...formData, product_name: e.target.value })} />
+                      <input className="form-input" placeholder="Ex: Auditoria de Processo, Visita Técnica..." value={formData.product_name} onChange={e => setFormData({ ...formData, product_name: e.target.value })} />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Janela de Início</label>
+                      <label className="form-label">Janela de Início (Cervejaria)</label>
                       <input type="date" className="form-input" value={formData.window_start?.split('T')[0]} onChange={e => setFormData({ ...formData, window_start: e.target.value })} />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Janela de Fim</label>
+                      <label className="form-label">Janela de Fim (Cervejaria)</label>
                       <input type="date" className="form-input" value={formData.window_end?.split('T')[0]} onChange={e => setFormData({ ...formData, window_end: e.target.value })} />
                     </div>
-                    <div className="form-group">
-                      <label className="form-label">Data Confirmada</label>
-                      <input type="date" className="form-input" value={formData.visit_date?.split('T')[0]} onChange={e => setFormData({ ...formData, visit_date: e.target.value })} />
-                    </div>
+                    
+                    {!isNew && (
+                      <div className="form-group">
+                        <label className="form-label">Data Confirmada pelo Fornecedor</label>
+                        <input type="date" className="form-input" value={formData.visit_date?.split('T')[0]} disabled style={{ background: '#f8fafc', color: '#64748b' }} />
+                      </div>
+                    )}
                   </div>
                 )}
 

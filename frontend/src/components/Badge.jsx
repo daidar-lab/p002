@@ -16,6 +16,7 @@ const STATUS_COLORS = {
   CANCELADO:  'badge--cancelado',
   // RVT Statuses
   PENDENTE: 'badge--enviado',
+  AGENDADA: 'badge--disposicao',
   AGUARDANDO_EXECUCAO: 'badge--disposicao',
   EM_VISITA: 'badge--analise',
   FINALIZADA: 'badge--assinaturas',
@@ -32,6 +33,7 @@ const STATUS_LABELS = {
   CANCELADO:  'Cancelado',
   // RVT Labels
   PENDENTE: 'Aguardando Agendamento',
+  AGENDADA: 'Visita agendada',
   AGUARDANDO_EXECUCAO: 'Aguardando Execução',
   EM_VISITA: 'Em Visita',
   FINALIZADA: 'Finalizada (Aguardando Assinaturas)',
