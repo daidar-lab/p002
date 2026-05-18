@@ -16,6 +16,12 @@ export default function Rvt() {
   const [newPartName, setNewPartName] = useState('');
   const [newPartCompany, setNewPartCompany] = useState('');
 
+  // Evidências (fotos + descrição)
+  const [newEvidenceDesc, setNewEvidenceDesc] = useState('');
+  const [newEvidenceFile, setNewEvidenceFile] = useState(null);
+  const [newEvidencePreview, setNewEvidencePreview] = useState(null);
+  const [lightbox, setLightbox] = useState(null); // URL da foto em lightbox
+
   // Form State
   const [formData, setFormData] = useState({
     supplier_id: '',
@@ -50,7 +56,8 @@ export default function Rvt() {
     setFormData({
       ...detail,
       participants: detail.participants || [],
-      links: detail.links?.map(l => l.id) || []
+      links: detail.links?.map(l => l.id) || [],
+      evidences: detail.evidences || []
     });
     setIsNew(false);
   };
@@ -71,7 +78,8 @@ export default function Rvt() {
       subjects_covered: '',
       conclusion: '',
       participants: [],
-      links: []
+      links: [],
+      evidences: []
     });
   };
 
@@ -211,6 +219,124 @@ export default function Rvt() {
                       <textarea className="form-input" rows="8" value={formData.subjects_covered} onChange={e => setFormData({ ...formData, subjects_covered: e.target.value })}
                         placeholder="Descreva RNCs vinculadas, análises técnicas, ações solicitadas..." />
                     </div>
+
+                    {/* ── Evidências Fotográficas ─────────────────── */}
+                    <div className="form-group rvt-evidences-section">
+                      <div className="rvt-evidences-header">
+                        <label className="form-label" style={{ margin: 0 }}>
+                          Evidências Fotográficas
+                          <span className="rvt-ev-count">
+                            {formData.evidences?.length || 0} foto{(formData.evidences?.length || 0) !== 1 ? 's' : ''}
+                          </span>
+                        </label>
+                      </div>
+
+                      {/* Grade de fotos já inseridas */}
+                      {formData.evidences && formData.evidences.length > 0 ? (
+                        <div className="rvt-ev-grid">
+                          {formData.evidences.map((ev, idx) => (
+                            <div key={idx} className="rvt-ev-card">
+                              <div
+                                className="rvt-ev-img-wrap"
+                                onClick={() => setLightbox(ev.url)}
+                                title="Clique para ampliar"
+                              >
+                                <img src={ev.url} alt={ev.description || `Foto ${idx + 1}`} className="rvt-ev-img" />
+                              </div>
+                              <div className="rvt-ev-body">
+                                <p className="rvt-ev-desc">
+                                  {ev.description || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Sem descrição</span>}
+                                </p>
+                                <button
+                                  type="button"
+                                  className="rvt-ev-remove"
+                                  title="Remover foto"
+                                  onClick={() => {
+                                    const updated = formData.evidences.filter((_, i) => i !== idx);
+                                    setFormData({ ...formData, evidences: updated });
+                                  }}
+                                >
+                                  ✕ Remover
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rvt-ev-empty">
+                          <p>Nenhuma foto inserida ainda.</p>
+                        </div>
+                      )}
+
+                      {/* Input de nova foto */}
+                      <div className="rvt-ev-add-box">
+                        <p className="rvt-ev-add-title">Adicionar nova foto</p>
+                        <div className="rvt-ev-add-row">
+                          {/* Área de upload */}
+                          <label className="rvt-ev-upload-label">
+                            {newEvidencePreview ? (
+                              <img src={newEvidencePreview} alt="preview" className="rvt-ev-upload-preview" />
+                            ) : (
+                              <div className="rvt-ev-upload-placeholder">
+                                <span style={{ fontSize: '12px', color: '#64748b' }}>Selecionar imagem</span>
+                                <span style={{ fontSize: '10px', color: '#94a3b8' }}>JPG, PNG, WEBP</span>
+                              </div>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              style={{ display: 'none' }}
+                              onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                setNewEvidenceFile(file);
+                                const reader = new FileReader();
+                                reader.onload = ev => setNewEvidencePreview(ev.target.result);
+                                reader.readAsDataURL(file);
+                              }}
+                            />
+                          </label>
+
+                          {/* Descrição + botão */}
+                          <div className="rvt-ev-add-right">
+                            <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Descrição da foto</label>
+                            <textarea
+                              className="form-input"
+                              rows="4"
+                              placeholder="Ex: Detalhe da não-conformidade no lote #4821, embalagem amassada na lateral..."
+                              value={newEvidenceDesc}
+                              onChange={e => setNewEvidenceDesc(e.target.value)}
+                              style={{ resize: 'vertical', fontSize: '13px' }}
+                            />
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              style={{ marginTop: '10px', width: '100%' }}
+                              disabled={!newEvidencePreview}
+                              onClick={() => {
+                                if (!newEvidencePreview) return;
+                                const newEvidence = {
+                                  url: newEvidencePreview,
+                                  description: newEvidenceDesc.trim(),
+                                  _local: true
+                                };
+                                setFormData({
+                                  ...formData,
+                                  evidences: [...(formData.evidences || []), newEvidence]
+                                });
+                                setNewEvidenceFile(null);
+                                setNewEvidencePreview(null);
+                                setNewEvidenceDesc('');
+                              }}
+                            >
+                              + Adicionar foto
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* ── fim Evidências ──────────────────────────── */}
+
                     <div className="form-group">
                       <label className="form-label">Conclusão e Recomendações</label>
                       <textarea className="form-input" rows="4" value={formData.conclusion} onChange={e => setFormData({ ...formData, conclusion: e.target.value })} />
@@ -435,6 +561,16 @@ export default function Rvt() {
           )}
         </main>
       </div>
+
+      {/* ── Lightbox ─────────────────────────────────────── */}
+      {lightbox && (
+        <div className="rvt-lightbox" onClick={() => setLightbox(null)}>
+          <div className="rvt-lightbox__inner" onClick={e => e.stopPropagation()}>
+            <button className="rvt-lightbox__close" onClick={() => setLightbox(null)}>✕</button>
+            <img src={lightbox} alt="Evidência ampliada" className="rvt-lightbox__img" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
