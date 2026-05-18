@@ -25,12 +25,11 @@ export default function RHECreate() {
   const fetchSuppliers = async () => {
     try {
       const data = await api.getSuppliers();
-      setSuppliers(data);
+      setSuppliers(data.rows || []);
     } catch (err) {
       console.error(err);
     }
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -56,10 +55,10 @@ export default function RHECreate() {
 
       const rhe = await api.post('/rhes', payload);
       // Após criar o RHE, inicializamos o checklist padrão
-      const items = form.phase === 'INITIAL' 
+      const items = form.phase === 'INITIAL'
         ? ['DOC_VALIDATION', 'TECH_SAMPLES', 'INITIAL_AUDIT']
         : ['STABILITY_TEST', 'PERFORMANCE_RUN', 'FINAL_DECISION'];
-      
+
       await api.post(`/rhes/${rhe.id}/checklist`, {
         items: items.map(id => ({ item_id: id, approved: false }))
       });
@@ -86,10 +85,10 @@ export default function RHECreate() {
         <form onSubmit={handleSubmit} className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
           <div className="form-group">
             <label className="form-label">Fase do Processo</label>
-            <select 
-              className="form-input" 
+            <select
+              className="form-input"
               value={form.phase}
-              onChange={e => setForm({...form, phase: e.target.value})}
+              onChange={e => setForm({ ...form, phase: e.target.value })}
               required
               disabled={!!queryPhase}
               style={queryPhase ? { background: '#f8fafc', cursor: 'not-allowed' } : {}}
@@ -101,10 +100,10 @@ export default function RHECreate() {
 
           <div className="form-group">
             <label className="form-label">Tipo de Objeto</label>
-            <select 
-              className="form-input" 
+            <select
+              className="form-input"
               value={form.object_type}
-              onChange={e => setForm({...form, object_type: e.target.value})}
+              onChange={e => setForm({ ...form, object_type: e.target.value })}
               required
             >
               <option value="SUPPLIER">Fornecedor</option>
@@ -116,10 +115,10 @@ export default function RHECreate() {
             <label className="form-label">
               {form.object_type === 'SUPPLIER' ? 'Fornecedor' : 'Fornecedor da Embalagem'}
             </label>
-            <select 
-              className="form-input" 
+            <select
+              className="form-input"
               value={form.supplier_id}
-              onChange={e => setForm({...form, supplier_id: e.target.value})}
+              onChange={e => setForm({ ...form, supplier_id: e.target.value })}
               required
             >
               <option value="">Selecione um fornecedor...</option>
@@ -132,11 +131,11 @@ export default function RHECreate() {
           {form.object_type === 'PACKAGING' && (
             <div className="form-group" style={{ gridColumn: 'span 2' }}>
               <label className="form-label">Identificação da Embalagem (Cód. ou Descrição)</label>
-              <input 
-                className="form-input" 
+              <input
+                className="form-input"
                 placeholder="Ex: Frasco 500ml PET, Tampa Flip-top, etc"
                 value={form.packaging_id || ''}
-                onChange={e => setForm({...form, packaging_id: e.target.value})}
+                onChange={e => setForm({ ...form, packaging_id: e.target.value })}
                 required
               />
             </div>
@@ -144,11 +143,11 @@ export default function RHECreate() {
 
           <div className="form-group" style={{ gridColumn: 'span 2' }}>
             <label className="form-label">Linha de Envase / Produção</label>
-            <input 
-              className="form-input" 
+            <input
+              className="form-input"
               placeholder="Ex: Linha 01, Envase Pet, etc"
               value={form.production_line}
-              onChange={e => setForm({...form, production_line: e.target.value})}
+              onChange={e => setForm({ ...form, production_line: e.target.value })}
               required
             />
           </div>
@@ -157,12 +156,12 @@ export default function RHECreate() {
             <div className="form-group" style={{ gridColumn: 'span 2' }}>
               <label className="form-label">ID do RHE Inicial Aprovado (Herança de Dados)</label>
               <div className="flex gap-2">
-                <input 
-                  className="form-input" 
+                <input
+                  className="form-input"
                   style={{ flex: 1 }}
                   placeholder="UUID do processo inicial"
                   value={form.related_initial_rhe_id}
-                  onChange={e => setForm({...form, related_initial_rhe_id: e.target.value})}
+                  onChange={e => setForm({ ...form, related_initial_rhe_id: e.target.value })}
                   onBlur={async (e) => {
                     const id = e.target.value.trim();
                     if (!id) return;
