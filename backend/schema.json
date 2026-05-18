@@ -992,7 +992,7 @@
   {
     "table_name": "rvts",
     "column_name": "product_name",
-    "data_type": "character varying"
+    "data_type": "text"
   },
   {
     "table_name": "rvts",

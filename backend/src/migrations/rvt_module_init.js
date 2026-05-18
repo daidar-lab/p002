@@ -29,7 +29,7 @@ async function migrate() {
         window_end DATE,
         
         -- Conteúdo Técnico
-        product_name VARCHAR(255),
+        product_name TEXT,
         visit_date DATE,
         pauta TEXT,
         subjects_covered TEXT, 

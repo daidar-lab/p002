@@ -44,9 +44,6 @@ class PortalRepository {
     return result.rows[0];
   }
 
-  /**
-   * Busca dados de RVT para o Portal
-   */
   async getPortalRvtData(rvtId) {
     const query = `
       SELECT 
@@ -57,7 +54,12 @@ class PortalRepository {
           FROM audit_quality.rvt_links rl
           JOIN audit_quality.documents d ON d.id = rl.document_id
           WHERE rl.rvt_id = r.id
-        ) as linked_rncs
+        ) as linked_rncs,
+        (
+          SELECT json_agg(json_build_object('name', rp.name, 'company', rp.company))
+          FROM audit_quality.rvt_participants rp
+          WHERE rp.rvt_id = r.id
+        ) as participants
       FROM audit_quality.rvts r
       JOIN audit_quality.suppliers s ON s.id = r.supplier_id
       WHERE r.id = $1
