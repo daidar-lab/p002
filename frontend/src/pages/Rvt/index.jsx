@@ -13,6 +13,8 @@ export default function Rvt() {
   const [activeTab, setActiveTab] = useState('scheduling');
   const [isNew, setIsNew] = useState(false);
   const [search, setSearch] = useState('');
+  const [newPartName, setNewPartName] = useState('');
+  const [newPartCompany, setNewPartCompany] = useState('');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -43,6 +45,8 @@ export default function Rvt() {
     });
     const detail = await res.json();
     setSelected(detail);
+    setNewPartName('');
+    setNewPartCompany('');
     setFormData({
       ...detail,
       participants: detail.participants || [],
@@ -55,6 +59,8 @@ export default function Rvt() {
     setSelected(null);
     setIsNew(true);
     setActiveTab('scheduling');
+    setNewPartName('');
+    setNewPartCompany('');
     setFormData({
       supplier_id: '',
       window_start: '',
@@ -109,10 +115,10 @@ export default function Rvt() {
         <aside className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '15px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
             <h3 style={{ fontSize: '13px', color: '#64748b', marginBottom: '10px' }}>HISTÓRICO DE VISITAS</h3>
-            <input 
-              type="text" 
-              className="form-input" 
-              placeholder="Buscar..." 
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Buscar..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{ padding: '8px', fontSize: '13px' }}
@@ -136,11 +142,11 @@ export default function Rvt() {
             ))}
           </div>
           <div style={{ padding: '10px', borderTop: '1px solid #e2e8f0' }}>
-            <Pagination 
-              currentPage={page} 
-              totalItems={total} 
-              itemsPerPage={limit} 
-              onPageChange={onPageChange} 
+            <Pagination
+              currentPage={page}
+              totalItems={total}
+              itemsPerPage={limit}
+              onPageChange={onPageChange}
             />
           </div>
         </aside>
@@ -167,7 +173,14 @@ export default function Rvt() {
                     </div>
                     <div className="form-group">
                       <label className="form-label">Produto/Serviço</label>
-                      <input className="form-input" placeholder="Ex: Auditoria de Processo, Visita Técnica..." value={formData.product_name} onChange={e => setFormData({ ...formData, product_name: e.target.value })} />
+                      <textarea
+                        className="form-input"
+                        rows="3"
+                        placeholder="Ex: Auditoria de Processo, Visita Técnica..."
+                        value={formData.product_name || ''}
+                        onChange={e => setFormData({ ...formData, product_name: e.target.value })}
+                        style={{ resize: 'vertical' }}
+                      />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Janela de Início (Cervejaria)</label>
@@ -177,7 +190,7 @@ export default function Rvt() {
                       <label className="form-label">Janela de Fim (Cervejaria)</label>
                       <input type="date" className="form-input" value={formData.window_end?.split('T')[0]} onChange={e => setFormData({ ...formData, window_end: e.target.value })} />
                     </div>
-                    
+
                     {!isNew && (
                       <div className="form-group">
                         <label className="form-label">Data Confirmada pelo Fornecedor</label>
@@ -201,6 +214,149 @@ export default function Rvt() {
                     <div className="form-group">
                       <label className="form-label">Conclusão e Recomendações</label>
                       <textarea className="form-input" rows="4" value={formData.conclusion} onChange={e => setFormData({ ...formData, conclusion: e.target.value })} />
+                    </div>
+
+                    <div className="form-group" style={{ background: '#f8fafc', padding: '20px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                      <label className="form-label" style={{ fontWeight: '600', color: '#0f172a', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>Participantes da Visita</span>
+                        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>({formData.participants?.length || 0} adicionado{formData.participants?.length !== 1 ? 's' : ''})</span>
+                      </label>
+
+                      {/* Lista de participantes adicionados */}
+                      {formData.participants && formData.participants.length > 0 ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px', marginBottom: '20px' }}>
+                          {formData.participants.map((p, idx) => (
+                            <div key={idx} style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '8px 12px',
+                              background: '#ffffff',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '8px',
+                              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                              transition: 'all 0.2s ease'
+                            }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
+                                <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '13px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{p.name}</span>
+                                {p.company && (
+                                  <span style={{
+                                    fontSize: '10px',
+                                    color: '#64748b',
+                                    whiteSpace: 'nowrap',
+                                    textOverflow: 'ellipsis',
+                                    overflow: 'hidden'
+                                  }}>{p.company}</span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newParticipants = formData.participants.filter((_, i) => i !== idx);
+                                  setFormData({ ...formData, participants: newParticipants });
+                                }}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: '#ef4444',
+                                  cursor: 'pointer',
+                                  fontSize: '14px',
+                                  padding: '4px',
+                                  marginLeft: '8px',
+                                  borderRadius: '50%',
+                                  width: '24px',
+                                  height: '24px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.target.style.background = '#fee2e2';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.target.style.background = 'transparent';
+                                }}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: '20px',
+                          textAlign: 'center',
+                          color: '#64748b',
+                          border: '1px dashed #cbd5e1',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          marginBottom: '20px',
+                          background: '#ffffff'
+                        }}>
+                          Nenhum participante adicionado ainda.
+                        </div>
+                      )}
+
+                      {/* Inputs para adicionar novo participante */}
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: '150px' }}>
+                          <label className="form-label" style={{ fontSize: '11px', color: '#475569', marginBottom: '4px' }}>Nome Completo</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Nome do participante..."
+                            value={newPartName}
+                            onChange={e => setNewPartName(e.target.value)}
+                            style={{ fontSize: '13px', padding: '8px 12px', background: '#ffffff' }}
+                          />
+                        </div>
+                        <div style={{ flex: 1, minWidth: '150px' }}>
+                          <label className="form-label" style={{ fontSize: '11px', color: '#475569', marginBottom: '4px' }}>Empresa / Área</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Ex: Gestor qualidade..."
+                            value={newPartCompany}
+                            onChange={e => setNewPartCompany(e.target.value)}
+                            style={{ fontSize: '13px', padding: '8px 12px', background: '#ffffff' }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          style={{
+                            padding: '9px 20px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            height: '38px',
+                            background: '#2563eb',
+                            borderColor: '#2563eb',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)'
+                          }}
+                          onClick={() => {
+                            const name = newPartName.trim();
+                            const company = newPartCompany.trim();
+                            if (!name) {
+                              alert('Por favor, informe pelo menos o nome do participante.');
+                              return;
+                            }
+                            const newParticipant = { name, company: company || '' };
+                            setFormData({
+                              ...formData,
+                              participants: [...(formData.participants || []), newParticipant]
+                            });
+                            setNewPartName('');
+                            setNewPartCompany('');
+                          }}
+                        >
+                          + Adicionar
+                        </button>
+                      </div>
                     </div>
 
                     <div className="form-group">
@@ -235,13 +391,13 @@ export default function Rvt() {
                           <div style={{ display: 'flex', gap: '10px' }}>
                             <span style={{ color: '#94a3b8', fontSize: '12px', alignSelf: 'center' }}>PENDENTE</span>
                             {s.role !== 'Representante Técnico' && selected?.status === 'FINALIZADA' && (
-                              <button className="btn-secondary" style={{ padding: '4px 12px', fontSize: '11px' }} 
+                              <button className="btn-secondary" style={{ padding: '4px 12px', fontSize: '11px' }}
                                 onClick={async () => {
                                   if (!window.confirm(`Confirmar assinatura como ${s.role}?`)) return;
                                   try {
                                     const res = await fetch(`${import.meta.env.VITE_API_URL}/rvt/${selected.id}/assinar`, {
                                       method: 'POST',
-                                      headers: { 
+                                      headers: {
                                         'Authorization': `Bearer ${sessionStorage.getItem('aq_token')}`,
                                         'Content-Type': 'application/json'
                                       },

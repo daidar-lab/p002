@@ -219,9 +219,9 @@ const PortalFornecedor = () => {
 
               {(data.product_name || data.pauta || data.subjects_covered) && (
                 <div style={{ textAlign: 'left', background: '#f8fafc', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
-                  {data.product_name && <p style={{ margin: '0 0 0.5rem' }}><strong>Produto:</strong> {data.product_name}</p>}
-                  {data.pauta && <p style={{ margin: '0 0 0.5rem' }}><strong>Pauta:</strong> {data.pauta}</p>}
-                  {data.subjects_covered && <p style={{ margin: 0 }}><strong>Assuntos / escopo:</strong> {data.subjects_covered}</p>}
+                  {data.product_name && <p style={{ margin: '0 0 0.5rem', whiteSpace: 'pre-wrap' }}><strong>Produto/Serviço:</strong> {data.product_name}</p>}
+                  {data.pauta && <p style={{ margin: '0 0 0.5rem', whiteSpace: 'pre-wrap' }}><strong>Pauta:</strong> {data.pauta}</p>}
+                  {data.subjects_covered && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}><strong>Assuntos / escopo:</strong> {data.subjects_covered}</p>}
                 </div>
               )}
               
@@ -259,10 +259,10 @@ const PortalFornecedor = () => {
             <div className="card highlight">
               <h2>Revisão e Assinatura Técnica</h2>
               <div style={{ marginBottom: '2rem', padding: '1.5rem', background: '#f8fafc', borderRadius: '8px' }}>
-                <p><strong>Produto:</strong> {data.product_name}</p>
+                <p style={{ whiteSpace: 'pre-wrap' }}><strong>Produto/Serviço:</strong> {data.product_name}</p>
                 <p><strong>Data da Visita:</strong> {new Date(data.visit_date).toLocaleDateString()}</p>
                 <p style={{ marginTop: '1rem' }}><strong>Resumo da Conclusão:</strong></p>
-                <p style={{ fontStyle: 'italic' }}>{data.conclusion}</p>
+                <p style={{ fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>{data.conclusion}</p>
               </div>
 
               {data.linked_rncs && data.linked_rncs.length > 0 && (
